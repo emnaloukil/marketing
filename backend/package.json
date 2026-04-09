@@ -1,0 +1,33 @@
+{
+  "name": "edukids-backend",
+  "version": "1.0.0",
+  "description": "EduKids Backend — MERN Stack",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "seed": "node src/seed/seedAll.js",
+    "seed:teachers": "node src/seed/seedTeachers.js",
+    "seed:parents": "node src/seed/seedParents.js",
+    "seed:students": "node src/seed/seedStudents.js",
+    "seed:sessions": "node src/seed/seedSessions.js",
+    "job:summaries":      "node src/jobs/generateDailySummaries.js",
+    "job:summaries:date": "node src/jobs/generateDailySummaries.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.0",
+    "express": "^5.2.1",
+    "mongodb": "^7.1.1",
+    "mongoose": "^9.4.1",
+    "node-cron": "^4.2.1",
+    "socket.io": "^4.8.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
