@@ -6,12 +6,17 @@ import './styles/tokens.css'
 import RoleSelectPage from './pages/RoleSelectPage'
 import TeacherRegisterPage from './pages/teacher/TeacherRegisterPage'
 import TeacherLoginPage from './pages/teacher/TeacherLoginPage'
+<<<<<<< HEAD
 import ParentLoginPage from './pages/parent/ParentLoginPage'
 import ParentRegisterPage from './pages/parent/ParentRegisterPage'
 import StudentLoginPage from './pages/student/StudentLoginPage'
 import TeacherClassesPage   from './pages/teacher/TeacherClassesPage'
 import TeacherClassLivePage from './pages/teacher/TeacherClassLivePage'
 
+=======
+import TeacherDashboard from './pages/teacher/TeacherDashboard'
+import BuddyPage from './pages/student/BuddyPage'
+>>>>>>> 7bcc18f8d8017a4d9842bc4927c02f87d0a218f6
 const App = () => {
   return (
     <Routes>
@@ -68,7 +73,9 @@ const App = () => {
         path="/student/dashboard"
         element={<Placeholder title="Student Dashboard" color="#4ECDC4" />}
       />
-
+      {/* ── Student ──────────────────────────────────────────────── */}
+      <Route path="/Student/buddy" element={<BuddyPage/>} />
+   
       {/* ── Fallback ─────────────────────────────────────────────── */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
