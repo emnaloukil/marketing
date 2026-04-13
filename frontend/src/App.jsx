@@ -7,7 +7,7 @@ import RoleSelectPage from './pages/RoleSelectPage'
 import TeacherRegisterPage from './pages/teacher/TeacherRegisterPage'
 import TeacherLoginPage from './pages/teacher/TeacherLoginPage'
 import TeacherDashboard from './pages/teacher/TeacherDashboard'
-
+import BuddyPage from './pages/student/BuddyPage'
 const App = () => {
   return (
     <Routes>
@@ -64,7 +64,9 @@ const App = () => {
         path="/student/dashboard"
         element={<Placeholder title="Student Dashboard" color="#4ECDC4" />}
       />
-
+      {/* ── Student ──────────────────────────────────────────────── */}
+      <Route path="/Student/buddy" element={<BuddyPage/>} />
+   
       {/* ── Fallback ─────────────────────────────────────────────── */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
