@@ -174,7 +174,7 @@ def chat(request: ChatRequest):
         "reply": reply,
         "detected_language": detected,
         "model": GROQ_MODEL,
-        "audio": audio_file   # 👈 NEW
+        "audio": audio_file   
     }
 
 @app.post("/transcribe", response_model=TranscribeResponse)
