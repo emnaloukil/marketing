@@ -64,7 +64,6 @@ async function createStudent(data) {
     supportProfile,
     parent:         parent  || null,
     teacher:        teacher || null,
-    isActive:       true,
   })
 
   return student
@@ -74,19 +73,11 @@ async function createStudent(data) {
  * Récupère tous les élèves actifs.
  * Tri alphabétique par nom pour un affichage propre.
  *
- * @param {Object} filters - filtres optionnels (isActive, supportProfile)
+ * @param {Object} filters - filtres optionnels ( supportProfile)
  * @returns {Document[]}
  */
 async function getAllStudents(filters = {}) {
   const query = {}
-
-  // Par défaut on ne retourne que les élèves actifs
-  // sauf si le caller demande explicitement tous les élèves
-  if (filters.isActive !== undefined) {
-    query.isActive = filters.isActive
-  } else {
-    query.isActive = true
-  }
 
   if (filters.supportProfile) {
     if (!VALID_SUPPORT_PROFILES.includes(filters.supportProfile)) {
@@ -125,7 +116,6 @@ async function getStudentsByClass(classId) {
 
   const students = await Student.find({
     classId:  classId.trim(),
-    isActive: true,
   })
     .sort({ lastName: 1, firstName: 1 })
     .lean()
@@ -137,15 +127,14 @@ async function getStudentsByClass(classId) {
  * Met à jour partiellement un élève.
  * Seuls les champs fournis sont modifiés.
  *
- * Champs non modifiables ici : isActive (utiliser deleteStudent pour désactiver)
+
  *
  * @param {string} id
  * @param {Object} updates
  * @returns {Document} élève mis à jour
  */
 async function updateStudent(id, updates) {
-  // Empêcher la modification de isActive via PATCH (utiliser DELETE)
-  delete updates.isActive
+
 
   // Valider supportProfile si fourni
   if (updates.supportProfile && !VALID_SUPPORT_PROFILES.includes(updates.supportProfile)) {
@@ -174,7 +163,7 @@ async function updateStudent(id, updates) {
   { 
     new: true, 
     runValidators: true, 
-    context: 'query' // <--- AJOUTEZ CECI : indispensable pour les updates partiels
+    context: 'query' 
   }
 )
 
@@ -183,7 +172,7 @@ async function updateStudent(id, updates) {
 }
 
 /**
- * Soft delete : passe isActive à false.
+ 
  * On ne supprime jamais vraiment un élève — ses ButtonEvents doivent rester.
  *
  * @param {string} id
@@ -192,9 +181,8 @@ async function updateStudent(id, updates) {
 async function deleteStudent(id) {
   const student = await Student.findById(id)
   if (!student) throw new Error(`Élève introuvable : ${id}`)
-  if (!student.isActive) throw new Error('Cet élève est déjà désactivé')
+ 
 
-  student.isActive = false
   await student.save()
   return student
 }

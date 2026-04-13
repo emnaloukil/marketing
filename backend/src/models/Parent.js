@@ -1,56 +1,62 @@
-const mongoose = require('mongoose')
-
-// ─────────────────────────────────────────
 // Parent.js
-//
-// Représente un parent dans le système.
-// Un parent peut avoir plusieurs enfants (students).
-// Il accède au résumé journalier de chaque enfant.
-// ─────────────────────────────────────────
+// Modifications ajoutées :
+//   - champ email (unique, requis)
+//   - champ password (hashé avant sauvegarde)
+//   - hook pre('save') pour le hash bcrypt
+//   - méthode comparePassword pour le login
+
+const mongoose = require('mongoose')
+const bcrypt   = require('bcryptjs')
 
 const parentSchema = new mongoose.Schema(
   {
-    // ── Identité ──────────────────────────
     firstName: {
       type:     String,
-      required: true,
+      required: [true, 'firstName est requis'],
       trim:     true,
     },
     lastName: {
       type:     String,
-      required: true,
+      required: [true, 'lastName est requis'],
       trim:     true,
     },
     email: {
       type:      String,
-      required:  true,
+      required:  [true, 'email est requis'],
       unique:    true,
       lowercase: true,
       trim:      true,
+      match:     [/^\S+@\S+\.\S+$/, 'Format email invalide'],
+    },
+    password: {
+      type:      String,
+      required:  [true, 'password est requis'],
+      minlength: [6, 'Le mot de passe doit faire au moins 6 caractères'],
+      select:    false,   // jamais retourné par défaut
     },
     phone: {
-      type:     String,
-      required: false, // optionnel pour le MVP
-    },
-
-    // ── Enfants ───────────────────────────
-    // Références vers les Students associés à ce parent
-    
-    // ── Auth ──────────────────────────────
-    // Mot de passe hashé (sera géré dans une prochaine étape)
-    password: {
-      type:   String,
-      select: false, // ne jamais retourner le mot de passe dans les queries
+      type: String,
+      trim: true,
     },
   },
   {
-    timestamps: true, // createdAt, updatedAt automatiques
+    timestamps: true,
   }
 )
 
-// Champ virtuel : nom complet
-parentSchema.virtual('fullName').get(function () {
-  return `${this.firstName} ${this.lastName}`
+
+
+
+parentSchema.pre('save', async function () {
+  if (!this.isModified('password')) return
+
+  const salt = await bcrypt.genSalt(10)
+  this.password = await bcrypt.hash(this.password, salt)
 })
+
+// ── Méthode comparePassword ───────────────────────────────────────────────────
+parentSchema.methods.comparePassword = async function (candidatePassword) {
+  return bcrypt.compare(candidatePassword, this.password)
+}
 
 module.exports = mongoose.model('Parent', parentSchema)

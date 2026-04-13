@@ -53,14 +53,6 @@ const buttonEventSchema = new mongoose.Schema(
       type:    Date,
       default: Date.now,
     },
-
-    // ── Métadonnées optionnelles ──────────
-    // Peut contenir des infos supplémentaires selon la source
-    // Ex: { deviceId: 'iot-btn-42', signal: 'strong' }
-    metadata: {
-      type:    mongoose.Schema.Types.Mixed,
-      default: {},
-    },
   },
   {
     // On désactive updatedAt car un ButtonEvent est immuable —

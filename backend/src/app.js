@@ -39,15 +39,19 @@ app.get('/', (req, res) => {
 const sessionRoutes = require("./routes/sessionRoutes");
 const eventRoutes   = require("./routes/eventRoutes");
 const teacherRoutes = require("./routes/teacherRoutes");
-const simulationRoutes = require('./routes/simulationRoutes');
 const studentRoutes = require('./routes/studentRoutes');
 const parentRoutes = require('./routes/parentRoutes');
 const jobRoutes = require('./routes/jobRoutes');
+const authRoutes = require('./routes/authRoutes');
+const parentChildRoutes = require('./routes/parentChildRoutes');
+const studentAuthRoutes = require('./routes/studentAuthRoutes');
 
+app.use('/api/student-auth', studentAuthRoutes);
+app.use('/api/parent/children', parentChildRoutes);
+app.use('/api/auth', authRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/parent', parentRoutes);
 app.use('/api/students', studentRoutes);
-app.use('/api/simulation', simulationRoutes);
 app.use("/api/sessions", sessionRoutes);
 app.use("/api/events",   eventRoutes);
 app.use("/api/teacher",  teacherRoutes);

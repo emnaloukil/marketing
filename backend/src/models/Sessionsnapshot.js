@@ -13,91 +13,61 @@ const mongoose = require('mongoose')
 // → Le snapshot contient déjà tout ce dont le frontend a besoin.
 // ─────────────────────────────────────────
 
-// Sous-schéma : état d'un élève dans la session
-const studentStateSchema = new mongoose.Schema(
-  {
-    studentId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref:  'Student',
-    },
-    studentName: String,
-
-    // Compteurs par bouton
-    counts: {
-      understand:  { type: Number, default: 0 },
-      confused:    { type: Number, default: 0 },
-      overwhelmed: { type: Number, default: 0 },
-      help:        { type: Number, default: 0 },
-    },
-
-    totalPresses: { type: Number, default: 0 },
-
-    // Score d'engagement calculé (0-100)
-    engagementScore: { type: Number, default: null },
-
-    // Historique des scores — utilisé pour tracer la courbe de tendance
-    scoreHistory: [Number],
-
-    // Tendance détectée pour cet élève
-    // improving | stable_good | stable_bad | degrading | recovering | null
-    trend: { type: String, default: null },
-  },
-  { _id: false } // pas besoin d'ID pour les sous-documents
-)
 
 const sessionSnapshotSchema = new mongoose.Schema(
   {
-    // ── Référence session ─────────────────
     sessionId: {
       type:     mongoose.Schema.Types.ObjectId,
       ref:      'ClassSession',
       required: true,
-      unique:   true, // un seul snapshot par session
+      unique:   true,
     },
 
-    // ── État de la classe ─────────────────
-
-    // Score moyen de toute la classe (0-100)
+    // Score global de la classe (0-100)
     classScore: {
       type:    Number,
-      default: null,
+      default: 0,
     },
 
-    // Historique du score classe — pour la ligne de tendance
+    // Score par élève : { "studentId": 72, "studentId2": 45 }
+    studentScores: {
+      type:    mongoose.Schema.Types.Mixed,
+      default: {},
+    },
+
     classScoreHistory: {
       type:    [Number],
-      default: [],
+       default: [],
     },
 
-    // Tendance détectée pour la classe entière
-    classTrend: {
+    // Counts par élève : { "studentId": { understand: 3, confused: 1, ... } }
+    countsByStudent: {
+      type:    mongoose.Schema.Types.Mixed,
+      default: {},
+    },
+
+    // Breakdown : { good: { count, studentIds }, warning: {...}, alert: {...} }
+    breakdown: {
+      type:    mongoose.Schema.Types.Mixed,
+      default: {},
+    },
+
+    // Trend : improving / stable_good / stable_bad / degrading / recovering
+    trend: {
       type:    String,
       default: null,
     },
 
-    // Breakdown : combien d'élèves dans chaque état
-    breakdown: {
-      engaged:    { type: Number, default: 0 },
-      struggling: { type: Number, default: 0 },
-      distressed: { type: Number, default: 0 },
-      total:      { type: Number, default: 0 },
-    },
+    // Recommandations selon la tendance
+    recommendations: {
+  type:    [mongoose.Schema.Types.Mixed],
+  default: [],
+},
 
-    // Recommandations générées pour l'enseignant
-    recommendations: [
-      {
-        type:    String, // ex: 'pedagogique', 'urgent', 'emotionnelle'
-        message: String,
-      },
-    ],
-
-    // ── État par élève ────────────────────
-    students: [studentStateSchema],
-
-    // ── Timing ────────────────────────────
-    lastUpdatedAt: {
+    // Timestamp du dernier event traité
+    lastEventAt: {
       type:    Date,
-      default: Date.now,
+      default: null,
     },
   },
   {

@@ -12,15 +12,11 @@ const teachers = [
     firstName: 'Sophie',
     lastName:  'Marchand',
     email:     'sophie.marchand@edukids.fr',
-    school:    'École Jules Ferry',
-    className: 'CM2-A',
   },
   {
     firstName: 'Thomas',
     lastName:  'Bertin',
     email:     'thomas.bertin@edukids.fr',
-    school:    'École Jules Ferry',
-    className: 'CM1-B',
   },
 ]
 

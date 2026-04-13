@@ -1,0 +1,177 @@
+/* src/styles/tokens.css */
+/* ─── EduKids Design System ─────────────────────────────────────────────── */
+
+@import url('https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&family=Baloo+2:wght@400;500;600;700;800&display=swap');
+
+:root {
+  /* ── Palette ──────────────────────────────────────────────────── */
+  --coral:        #FF6B6B;
+  --coral-light:  #FFB3B3;
+  --coral-soft:   #FFF0F0;
+
+  --lavender:     #9B8EFF;
+  --lavender-light: #C5B9FF;
+  --lavender-soft:  #F3F0FF;
+
+  --mint:         #4ECDC4;
+  --mint-light:   #A8E6E2;
+  --mint-soft:    #F0FFFE;
+
+  --amber:        #FFB347;
+  --amber-light:  #FFD9A0;
+  --amber-soft:   #FFFAF0;
+
+  --sky:          #74C0FC;
+  --sky-light:    #BAE0FF;
+  --sky-soft:     #EFF8FF;
+
+  --rose:         #F06595;
+  --rose-light:   #FAB8CE;
+  --rose-soft:    #FFF0F5;
+
+  /* ── Neutrals ─────────────────────────────────────────────────── */
+  --white:        #FFFFFF;
+  --off-white:    #FFFDFB;
+  --gray-50:      #F9F8FF;
+  --gray-100:     #F0EEF8;
+  --gray-200:     #E2DFF2;
+  --gray-300:     #C8C4DC;
+  --gray-400:     #9E99B8;
+  --gray-500:     #706C8A;
+  --gray-600:     #4A4666;
+  --gray-700:     #2D2A45;
+  --gray-800:     #1A1830;
+  --gray-900:     #0D0C1A;
+
+  /* ── Typography ───────────────────────────────────────────────── */
+  --font-display: 'Baloo 2', cursive;
+  --font-body:    'Nunito', sans-serif;
+
+  --text-xs:    0.72rem;
+  --text-sm:    0.85rem;
+  --text-base:  1rem;
+  --text-md:    1.1rem;
+  --text-lg:    1.25rem;
+  --text-xl:    1.5rem;
+  --text-2xl:   1.875rem;
+  --text-3xl:   2.25rem;
+  --text-4xl:   3rem;
+  --text-5xl:   3.75rem;
+
+  /* ── Spacing ──────────────────────────────────────────────────── */
+  --sp-1:   4px;
+  --sp-2:   8px;
+  --sp-3:   12px;
+  --sp-4:   16px;
+  --sp-5:   20px;
+  --sp-6:   24px;
+  --sp-8:   32px;
+  --sp-10:  40px;
+  --sp-12:  48px;
+  --sp-16:  64px;
+  --sp-20:  80px;
+
+  /* ── Radius ───────────────────────────────────────────────────── */
+  --radius-sm:   8px;
+  --radius-md:   14px;
+  --radius-lg:   20px;
+  --radius-xl:   28px;
+  --radius-2xl:  36px;
+  --radius-full: 9999px;
+
+  /* ── Shadows ──────────────────────────────────────────────────── */
+  --shadow-xs:  0 1px 3px rgba(100, 90, 150, 0.06);
+  --shadow-sm:  0 2px 8px rgba(100, 90, 150, 0.08);
+  --shadow-md:  0 4px 20px rgba(100, 90, 150, 0.10);
+  --shadow-lg:  0 8px 32px rgba(100, 90, 150, 0.13);
+  --shadow-xl:  0 16px 48px rgba(100, 90, 150, 0.16);
+  --shadow-glow-coral:    0 0 32px rgba(255, 107, 107, 0.25);
+  --shadow-glow-lavender: 0 0 32px rgba(155, 142, 255, 0.25);
+  --shadow-glow-mint:     0 0 32px rgba(78, 205, 196, 0.25);
+
+  /* ── Transitions ──────────────────────────────────────────────── */
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-fast:   150ms;
+  --duration-normal: 250ms;
+  --duration-slow:   400ms;
+}
+
+/* ── Global Reset ─────────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-body);
+  color: var(--gray-700);
+  background: var(--off-white);
+  line-height: 1.6;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  line-height: 1.2;
+  color: var(--gray-800);
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  outline: none;
+  font-family: var(--font-body);
+}
+
+input, textarea, select {
+  font-family: var(--font-body);
+  outline: none;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+/* ── Animations globales ──────────────────────────────────────────────────── */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  33%       { transform: translateY(-12px) rotate(2deg); }
+  66%       { transform: translateY(-6px) rotate(-1deg); }
+}
+
+@keyframes pulse-soft {
+  0%, 100% { transform: scale(1); opacity: 0.22; }
+  50%       { transform: scale(1.08); opacity: 0.30; }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.animate-fadeInUp { animation: fadeInUp var(--duration-slow) var(--ease-smooth) both; }
+.animate-fadeIn   { animation: fadeIn var(--duration-normal) var(--ease-smooth) both; }
+.animate-float    { animation: float 6s ease-in-out infinite; }
