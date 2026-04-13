@@ -45,7 +45,11 @@ const jobRoutes = require('./routes/jobRoutes');
 const authRoutes = require('./routes/authRoutes');
 const parentChildRoutes = require('./routes/parentChildRoutes');
 const studentAuthRoutes = require('./routes/studentAuthRoutes');
+const classRoutes = require('./routes/classRoutes');
+const materialRoutes = require('./routes/materialRoutes');
 
+app.use('/api/classes', classRoutes);
+app.use('/api/materials', materialRoutes);
 app.use('/api/student-auth', studentAuthRoutes);
 app.use('/api/parent/children', parentChildRoutes);
 app.use('/api/auth', authRoutes);
