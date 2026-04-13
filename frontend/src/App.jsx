@@ -8,6 +8,7 @@ import TeacherRegisterPage from './pages/teacher/TeacherRegisterPage'
 import TeacherLoginPage from './pages/teacher/TeacherLoginPage'
 import TeacherDashboard from './pages/teacher/TeacherDashboard'
 import BuddyPage from './pages/student/BuddyPage'
+import ChildrenPage from './pages/parent/ChildrenPage'
 const App = () => {
   return (
     <Routes>
@@ -54,7 +55,9 @@ const App = () => {
         path="/parent/dashboard"
         element={<Placeholder title="Parent Dashboard" color="#FF6B6B" />}
       />
-
+      <Routes>
+        <Route path="/parent/children" element={<ChildrenPage />} />
+      </Routes>
       {/* ── Student ──────────────────────────────────────────────── */}
       <Route
         path="/student/login"
