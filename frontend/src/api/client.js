@@ -85,12 +85,18 @@ export const eventsAPI = {
   getBySession: (sessionId) => request('GET', `/events/session/${sessionId}`),
 }
 
-// ── Parent ────────────────────────────────────────────────────────────────────
+
 export const parentAPI = {
   getChildren: (parentId) => request('GET', `/parent/children/${parentId}`),
   addChild: (data) => request('POST', '/parent/children', data),
-  getDailySummary: (studentId, date) =>
-    request('GET', `/parent/daily-summary/${studentId}${date ? `?date=${date}` : ''}`),
+  getDailySummary: (studentId, parentId, date = '') => {
+    const params = new URLSearchParams()
+    if (parentId) params.set('parentId', parentId)
+    if (date) params.set('date', date)
+
+    const query = params.toString() ? `?${params.toString()}` : ''
+    return request('GET', `/parent/daily-summary/${studentId}${query}`)
+  },
 }
 
 // ── Student ───────────────────────────────────────────────────────────────────

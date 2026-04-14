@@ -16,6 +16,7 @@ import TestPage from './pages/TestPage'
 import Classroompage from './pages/student/Classroompage'
 import Coursepage from './pages/student/Coursepage'
 import ChildrenPage from './pages/parent/ChildrenPage'
+import ParentDailySummaryPage from './pages/parent/ParentDailySummaryPage'
 
 const App = () => {
   return (
@@ -27,6 +28,7 @@ const App = () => {
       <Route path="/teacher/login" element={<TeacherLoginPage />} />
       <Route path="/teacher/classes" element={<TeacherClassesPage />} />
       <Route path="/teacher/class/:classId/live" element={<TeacherClassLivePage />} />
+      <Route path="/parent/child/:studentId/summary" element={<ParentDailySummaryPage />} />
    
     
 

@@ -4,8 +4,19 @@
 
 const ClassSession = require('../models/Classsession')
 const { endSession } = require('../services/sessionService')
+const { runDailySummaryJob } = require('../jobs/generateDailySummaries')
 
 const VALID_SUBJECTS = ['mathematics', 'reading', 'sciences']
+
+function formatDateYYYYMMDD(dateValue) {
+  const d = dateValue ? new Date(dateValue) : new Date()
+
+  if (isNaN(d.getTime())) {
+    return new Date().toISOString().split('T')[0]
+  }
+
+  return d.toISOString().split('T')[0]
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/sessions/start
@@ -151,10 +162,23 @@ async function end(req, res) {
   try {
     const session = await endSession(req.params.id)
 
+    // Dès qu'une session est terminée, on génère/met à jour
+    // les résumés journaliers pour la date de cette session.
+    const targetDate = formatDateYYYYMMDD(session.endedAt || session.startedAt || new Date())
+
+    try {
+      await runDailySummaryJob(targetDate)
+    } catch (jobErr) {
+      console.error('[DailySummary] Erreur génération après fin de session :', jobErr.message)
+    }
+
     return res.json({
       success: true,
       message: 'Session terminée',
-      data: session,
+      data: {
+        ...session,
+        summaryDate: targetDate,
+      },
     })
   } catch (err) {
     const status =
