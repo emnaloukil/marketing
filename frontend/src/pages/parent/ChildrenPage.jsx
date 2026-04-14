@@ -16,7 +16,6 @@ export default function ChildrenPage() {
   const handleAdd = async (formData) => {
     const result = await addChild(formData)
     setAddedChildInfo({
-      studentId: result.student._id,
       studentCode: result.accessInfo.studentCode,
       pin: result.accessInfo.pin,
     })
@@ -83,7 +82,7 @@ export default function ChildrenPage() {
         </div>
       )}
 
-      {/* Added child info */}
+      {/* Added child info overlay */}
       {addedChildInfo && (
         <div style={{
           position: 'fixed', bottom: 24, right: 24, zIndex: 100,
@@ -93,9 +92,9 @@ export default function ChildrenPage() {
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 12 }}>
             <div>
-              <p style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>Child added</p>
+              <p style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>Child added successfully!</p>
               <p style={{ margin: '6px 0 0', fontSize: 12, color: '#6b7280' }}>
-                Keep the PIN and student id for the child.
+                Keep these credentials safe for your child to log in.
               </p>
             </div>
             <button
@@ -110,17 +109,13 @@ export default function ChildrenPage() {
           </div>
 
           <div style={{ display: 'grid', gap: 10 }}>
-            <div style={{ background: '#faf5ff', borderRadius: 14, padding: '12px 14px' }}>
-              <p style={{ margin: 0, fontSize: 11, color: '#8b5cf6', textTransform: 'uppercase', letterSpacing: '.08em' }}>Student ID</p>
-              <p style={{ margin: '6px 0 0', fontWeight: 700, wordBreak: 'break-word' }}>{addedChildInfo.studentId}</p>
-            </div>
             <div style={{ background: '#f0fdf4', borderRadius: 14, padding: '12px 14px' }}>
-              <p style={{ margin: 0, fontSize: 11, color: '#15803d', textTransform: 'uppercase', letterSpacing: '.08em' }}>PIN</p>
-              <p style={{ margin: '6px 0 0', fontWeight: 700 }}>{addedChildInfo.pin}</p>
+              <p style={{ margin: 0, fontSize: 11, color: '#15803d', textTransform: 'uppercase', letterSpacing: '.08em' }}>PIN Code</p>
+              <p style={{ margin: '6px 0 0', fontWeight: 700, fontSize: 16, fontFamily: 'monospace' }}>{addedChildInfo.pin}</p>
             </div>
             <div style={{ background: '#eef2ff', borderRadius: 14, padding: '12px 14px' }}>
-              <p style={{ margin: 0, fontSize: 11, color: '#3730a3', textTransform: 'uppercase', letterSpacing: '.08em' }}>Student code</p>
-              <p style={{ margin: '6px 0 0', fontWeight: 700 }}>{addedChildInfo.studentCode}</p>
+              <p style={{ margin: 0, fontSize: 11, color: '#3730a3', textTransform: 'uppercase', letterSpacing: '.08em' }}>Student Code</p>
+              <p style={{ margin: '6px 0 0', fontWeight: 700, fontSize: 14, fontFamily: 'monospace' }}>{addedChildInfo.studentCode}</p>
             </div>
           </div>
         </div>

@@ -23,8 +23,9 @@ const studentSchema = new mongoose.Schema(
     },
     classId: {
       type:     String,
-      required: [true, 'classId est requis'],
+      required: false,
       trim:     true,
+      default:  '',
     },
 
     // ── Profil ────────────────────────────────────────────────────────────────
