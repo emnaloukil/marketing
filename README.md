@@ -1,5 +1,7 @@
 # EduKids - Development Guide
 
+🧪 **Test de workflow - Cette ligne a été ajoutée sur une feature branch**
+
 ## 🚀 Démarrage Rapide
 
 ### Pour commencer à développer :
