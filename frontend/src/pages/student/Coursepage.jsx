@@ -71,9 +71,10 @@ const ACTION_BUTTONS = [
 ];
 
 export default function CoursePage() {
-  const { id } = useParams();
+  const { courseId } = useParams();
   const [searchParams] = useSearchParams();
   const classroomId = searchParams.get("classroomId");
+  const id = courseId;
 
   const { activeCourse, activeClassroom, classrooms, student, theme } = useStudent();
   const [modalAction, setModalAction] = useState(null);

@@ -6,8 +6,9 @@ import ChatbotFAB from "../../components/student/Chatbotfab";
 import "./Classroompage.css";
 
 export default function ClassroomPage() {
-  const { id } = useParams();                          // ← id depuis l'URL
+  const { classroomId } = useParams();                 // ← classroomId depuis l'URL
   const { classrooms, openCourse } = useStudent();
+  const id = classroomId;
   const navigate = useNavigate();
 
   // On cherche la classroom dans le tableau — fonctionne même en accès direct par URL

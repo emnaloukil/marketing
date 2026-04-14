@@ -11,6 +11,11 @@ import StudentLoginPage from './pages/student/StudentLoginPage'
 import TeacherClassesPage from './pages/teacher/TeacherClassesPage'
 import TeacherClassLivePage from './pages/teacher/TeacherClassLivePage'
 import BuddyPage from './pages/student/BuddyPage' // adapte le chemin si besoin
+import ClassroomsPage from './pages/student/Classroomspage'
+import TestPage from './pages/TestPage'
+import Classroompage from './pages/student/Classroompage'
+import Coursepage from './pages/student/Coursepage'
+import BuddyPageWrapper from './pages/student/BuddyPageWrapper'
 
 const App = () => {
   return (
@@ -82,8 +87,13 @@ const App = () => {
         path="/student/dashboard"
         element={<ClassroomsPage />}
       />
+      <Route path="/student/classroom/:classroomId" element={<Classroompage />} />
+      <Route path="/student/course/:courseId" element={<Coursepage />} />
 
-      <Route path="/student/buddy" element={<BuddyPage />} />
+      <Route path="/student/buddy" element={<BuddyPageWrapper />} />
+      <Route path="/student/classrooms" element={<ClassroomsPage />} />
+
+      <Route path="/test" element={<TestPage />} />
 
       <Route path="*" element={<Navigate to="/" replace />} />
 
