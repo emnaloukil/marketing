@@ -80,8 +80,8 @@ const TeacherClassesPage = () => {
     }
   }
 
-  const handleOpenClass = (cls) => {
-    navigate(`/teacher/class/${cls._id || cls.id}/live`, { state: { cls } })
+  const handleOpenClass = (cls) => {navigate
+    navigate(`/teacher/class/${cls.id}/live`, { state: { cls } })
   }
 
   return (

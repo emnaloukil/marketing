@@ -60,19 +60,20 @@ export const classesAPI = {
 // ⚠️ Ces méthodes utilisaient une variable `api` (axios) non définie.
 // Migrées vers fetch via request() pour cohérence.
 export const liveSessionAPI = {
-  getClassDetails:    (classId)            => request('GET',  `/teacher/live/classes/${classId}`),
-  getOrCreateSession: ({ classId, subject})=> request('POST', `/teacher/live/session/start`, { classId, subject }),
-  getSnapshot:        (sessionId)          => request('GET',  `/teacher/live/session/${sessionId}/snapshot`),
-  getMaterials:       ({ classId, subject})=> request('GET',  `/teacher/live/materials?classId=${classId}&subject=${encodeURIComponent(subject)}`),
-  uploadMaterial:     (formData)           => {
-    // multipart/form-data — ne pas mettre Content-Type manuellement
-    const token = localStorage.getItem('token')
-    return fetch(`${BASE_URL}/teacher/live/materials/upload`, {
-      method:  'POST',
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      body:    formData,
-    }).then(r => r.json())
-  },
+  getClassDetails: (classId) =>
+    request('GET', `/teacher/live/classes/${classId}`),
+
+  getOrCreateSession: ({ classId, subject }) =>
+    request('POST', `/teacher/live/session/start`, { classId, subject }),
+
+  getSnapshot: (sessionId) =>
+    request('GET', `/teacher/live/session/${sessionId}/snapshot`),
+
+  getMaterials: ({ classId, subject }) =>
+    request('GET', `/teacher/live/materials?classId=${classId}&subject=${subject}`),
+
+  uploadMaterial: (formData) =>
+    request('POST', `/teacher/live/materials/upload`, formData),
 }
 
 // ── Sessions ──────────────────────────────────────────────────────────────────
@@ -106,7 +107,15 @@ export const studentAPI = {
   getProfile: (studentId) => request('GET', `/student-auth/profile/${studentId}`),
 }
 
-// ── Export default ────────────────────────────────────────────────────────────
+export const studentsAPI = {
+  getClassrooms: (studentId) => request('GET', `/students/${studentId}/classrooms`),
+  joinClassroom: (studentId, classroomCode) => request('POST', `/students/${studentId}/join`, { classroomCode }),
+}
+
+export const materialsAPI = {
+  getByClassroom: (classroomId) => request('GET', `/materials/classroom/${classroomId}`),
+}
+
 export default {
   auth:        authAPI,
   classes:     classesAPI,

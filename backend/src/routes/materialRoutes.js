@@ -1,31 +1,9 @@
 const express = require('express')
-const router = express.Router()
+const router  = express.Router()
+const { getMaterials, addMaterial, deleteMaterial } = require('../controllers/materialController')
 
-const {
-  createMaterial,
-  getMaterialsByClass,
-  getMaterialsBySession,
-  getMaterialById,
-  updateMaterial,
-  deleteMaterial,
-} = require('../controllers/materialController')
-
-// POST /api/materials
-router.post('/', createMaterial)
-
-// GET /api/materials/class/:classId
-router.get('/class/:classId', getMaterialsByClass)
-
-// GET /api/materials/session/:sessionId
-router.get('/session/:sessionId', getMaterialsBySession)
-
-// GET /api/materials/:id
-router.get('/:id', getMaterialById)
-
-// PUT /api/materials/:id
-router.put('/:id', updateMaterial)
-
-// DELETE /api/materials/:id
+router.get('/',      getMaterials)
+router.post('/',     addMaterial)
 router.delete('/:id', deleteMaterial)
 
 module.exports = router

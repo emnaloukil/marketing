@@ -4,14 +4,13 @@
 // Flux register :
 //   1. Vérifier que l'email n'existe pas déjà
 //   2. Créer le document (le hook pre save hashe le password)
-//   3. Retourner un token JWT + les infos sans password
+
 //
 // Flux login :
 //   1. Trouver le document par email (avec .select('+password'))
 //   2. Comparer le password via comparePassword()
-//   3. Retourner un token JWT + les infos sans password
 
-const jwt     = require('jsonwebtoken')
+
 const Teacher = require('../models/Teacher')
 const Parent  = require('../models/Parent')
 
@@ -20,30 +19,21 @@ const Parent  = require('../models/Parent')
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Génère un token JWT.
+
  * Le payload contient l'id et le rôle — utilisé plus tard pour les guards.
  *
  * @param {string} id   - _id MongoDB du document
  * @param {string} role - 'teacher' | 'parent'
- * @returns {string} token signé
  */
-function generateToken(id, role) {
-  return jwt.sign(
-    { id, role },
-    process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
-  )
-}
+
 
 /**
  * Formate la réponse d'auth — jamais de password dans la réponse.
  * @param {Document} user
  * @param {string}   role
- * @returns {Object} { token, user }
  */
 function buildAuthResponse(user, role) {
   return {
-    token: generateToken(user._id.toString(), role),
     user:  {
       id:        user._id,
       firstName: user.firstName,

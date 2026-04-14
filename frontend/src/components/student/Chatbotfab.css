@@ -1,0 +1,89 @@
+.chatbot-fab {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  z-index: 200;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.18);
+  transition: transform 0.26s ease, box-shadow 0.26s ease, filter 0.26s ease;
+  overflow: visible;
+}
+
+.chatbot-fab:hover {
+  transform: translateY(-2px) scale(1.08);
+  box-shadow: 0 18px 48px rgba(0,0,0,0.24);
+}
+
+.chatbot-fab.fab-open {
+  transform: rotate(45deg) scale(1.02);
+}
+
+.fab-avatar {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.fab-emoji { font-size: 1.6rem; }
+
+/* Pulse ring */
+.fab-pulse-ring {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 2.5px solid;
+  animation: pulse-ring 1.8s ease-out infinite;
+  pointer-events: none;
+}
+
+[data-animations="false"] .fab-pulse-ring { animation: none; }
+
+/* Label tooltip */
+.fab-label {
+  position: absolute;
+  right: calc(100% + 14px);
+  top: 50%;
+  transform: translate(8px, -50%);
+  white-space: nowrap;
+  background: rgba(37, 99, 235, 0.95);
+  color: white;
+  font-size: 0.82rem;
+  font-weight: 800;
+  padding: 8px 14px;
+  border-radius: 999px;
+  pointer-events: none;
+  opacity: 0;
+  transition: all 0.22s ease;
+  backdrop-filter: blur(8px);
+}
+
+.fab-label::after {
+  content: "";
+  position: absolute;
+  right: -6px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 6px solid transparent;
+  border-left-color: rgba(37, 99, 235, 0.95);
+}
+
+.chatbot-fab:hover .fab-label {
+  opacity: 1;
+  transform: translate(0, -50%);
+}
+
+@media (max-width: 480px) {
+  .chatbot-fab { bottom: 20px; right: 20px; width: 54px; height: 54px; }
+  .fab-label { display: none; }
+}

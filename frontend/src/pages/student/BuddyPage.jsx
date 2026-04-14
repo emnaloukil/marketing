@@ -1,4 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import Header from '../../components/student/Header'
+import ChatbotFAB from '../../components/student/Chatbotfab'
 
 const API_BASE = 'http://localhost:8000'
 
@@ -99,6 +102,7 @@ export default function BuddyPage({ studentName = 'Luna Martinez' }) {
   const [recording, setRecording] = useState(false)
   const [speaking, setSpeaking]   = useState(false)
   const [error, setError]         = useState(null)
+  const navigate = useNavigate()
 
   const bottomRef = useRef(null)
   const inputRef  = useRef(null)
@@ -191,6 +195,7 @@ export default function BuddyPage({ studentName = 'Luna Martinez' }) {
 
   return (
     <div style={s.page}>
+      <Header />
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
         * { box-sizing:border-box; margin:0; padding:0; }
@@ -221,10 +226,11 @@ export default function BuddyPage({ studentName = 'Luna Martinez' }) {
             <span style={s.levelLabel}>Level 5</span>
             <div style={s.xpBg}><div style={s.xpFill}/></div>
           </div>
-          <button style={s.logoutBtn}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+          <button style={s.backBtn} onClick={() => navigate(-1)} title="Back to previous page">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
             </svg>
+            <span style={s.backLabel}>Back</span>
           </button>
         </div>
         <div style={s.headerWave}/>
@@ -351,12 +357,13 @@ export default function BuddyPage({ studentName = 'Luna Martinez' }) {
           </div>
         </div>
       </div>
+      <ChatbotFAB />
     </div>
   )
 }
 
 const s = {
-  page:           { fontFamily:"'Nunito',sans-serif", minHeight:'100vh', background:'#FDF8EE', display:'flex', flexDirection:'column' },
+  page:           { fontFamily:"'Nunito',sans-serif", minHeight:'100vh', background:'#FDF8EE', display:'flex', flexDirection:'column', paddingTop: 'calc(var(--header-height) + 16px)' },
   header:         { background:'linear-gradient(135deg,#3B82F6 0%,#06B6D4 100%)', position:'relative', flexShrink:0 },
   headerInner:    { display:'flex', alignItems:'center', gap:16, padding:'20px 40px 52px', maxWidth:1200, margin:'0 auto', width:'100%' },
   headerWave:     { position:'absolute', bottom:-1, left:0, right:0, height:36, background:'#FDF8EE', borderTopLeftRadius:'50% 100%', borderTopRightRadius:'50% 100%' },
@@ -368,7 +375,8 @@ const s = {
   levelLabel:     { fontSize:13, fontWeight:700, color:'white' },
   xpBg:           { width:100, height:9, borderRadius:99, background:'rgba(255,255,255,0.3)', overflow:'hidden' },
   xpFill:         { width:'68%', height:'100%', borderRadius:99, background:'#FACC15' },
-  logoutBtn:      { background:'transparent', border:'none', cursor:'pointer', padding:6, display:'flex', alignItems:'center' },
+  backBtn:        { display:'inline-flex', alignItems:'center', gap:8, background:'rgba(255,255,255,0.22)', border:'1px solid rgba(255,255,255,0.35)', color:'white', borderRadius:999, padding:'10px 16px', cursor:'pointer', fontWeight:700, fontSize:13, transition:'all 0.2s' },
+  backLabel:      { fontSize:13, fontWeight:700, color:'white' },
 
   content:        { flex:1, display:'flex', gap:24, padding:'32px 40px 40px', maxWidth:1200, margin:'0 auto', width:'100%' },
 

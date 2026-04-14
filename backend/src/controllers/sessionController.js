@@ -3,38 +3,39 @@
 // La logique métier reste dans sessionService.js.
 
 const ClassSession = require('../models/Classsession')
-const { startSession, endSession, getSessionSnapshot } = require('../services/sessionService')
+const { endSession } = require('../services/sessionService')
 
 const VALID_SUBJECTS = ['mathematics', 'reading', 'sciences']
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/sessions/start
 // ─────────────────────────────────────────────────────────────────────────────
-// Le teacher choisit sa classe et sa matière, clique Start Session.
-// Le backend vérifie qu'il n'y a pas déjà une session active pour cette classe,
-// puis crée la session et retourne le sessionId au frontend.
-//
-// Body attendu :
-// {
-//   "teacherId": "...",
-//   "classId":   "CM2-A",
-//   "subject":   "mathematics"
-// }
 
 async function start(req, res) {
   try {
     const { teacherId, classId, subject } = req.body
 
-    // ── Validation ────────────────────────────────────────────────────────────
     if (!teacherId) {
-      return res.status(400).json({ success: false, message: 'teacherId est requis' })
+      return res.status(400).json({
+        success: false,
+        message: 'teacherId est requis',
+      })
     }
+
     if (!classId || !classId.trim()) {
-      return res.status(400).json({ success: false, message: 'classId est requis' })
+      return res.status(400).json({
+        success: false,
+        message: 'classId est requis',
+      })
     }
+
     if (!subject) {
-      return res.status(400).json({ success: false, message: 'subject est requis' })
+      return res.status(400).json({
+        success: false,
+        message: 'subject est requis',
+      })
     }
+
     if (!VALID_SUBJECTS.includes(subject)) {
       return res.status(400).json({
         success: false,
@@ -42,74 +43,103 @@ async function start(req, res) {
       })
     }
 
-    // ── Vérifier qu'il n'y a pas déjà une session active pour cette classe ───
-    // Double sécurité : on vérifie ici ET l'index unique MongoDB protège en base.
-    // ✅ Nouveau — vérifie le teacher ET la classe
-const existingByTeacher = await ClassSession.findOne({
-  teacherId: teacherId,
-  status:    'active',
-}).lean()
+    const cleanClassId = classId.trim()
 
-if (existingByTeacher) {
-  return res.status(409).json({
-    success: false,
-    message: `Vous avez déjà une session active (classe: ${existingByTeacher.classId}, matière: ${existingByTeacher.subject})`,
-    data: {
-      existingSessionId: existingByTeacher._id,
-      classId:           existingByTeacher.classId,
-      subject:           existingByTeacher.subject,
-      startedAt:         existingByTeacher.startedAt,
-    },
-  })
-}
+    // 1) Si la même session active existe déjà, on la retourne
+    const existingSameSession = await ClassSession.findOne({
+      teacherId,
+      classId: cleanClassId,
+      subject,
+      status: 'active',
+    }).lean()
 
-const existingByClass = await ClassSession.findOne({
-  classId: classId.trim(),
-  status:  'active',
-}).lean()
+    if (existingSameSession) {
+      return res.status(200).json({
+        success: true,
+        message: 'Session active existante récupérée',
+        data: {
+          sessionId: existingSameSession._id,
+          teacherId: existingSameSession.teacherId,
+          classId: existingSameSession.classId,
+          subject: existingSameSession.subject,
+          status: existingSameSession.status,
+          startedAt: existingSameSession.startedAt,
+          endedAt: existingSameSession.endedAt,
+        },
+      })
+    }
 
-if (existingByClass) {
-  return res.status(409).json({
-    success: false,
-    message: `Une session est déjà active pour la classe ${classId}`,
-    data: {
-      existingSessionId: existingByClass._id,
-      subject:           existingByClass.subject,
-      startedAt:         existingByClass.startedAt,
-    },
-  })
-}
-    // ── Créer la session directement active ───────────────────────────────────
+    // 2) Si le teacher a déjà une autre session active, on bloque
+    const existingByTeacher = await ClassSession.findOne({
+      teacherId,
+      status: 'active',
+    }).lean()
+
+    if (existingByTeacher) {
+      return res.status(409).json({
+        success: false,
+        message: `Vous avez déjà une session active (classe: ${existingByTeacher.classId}, matière: ${existingByTeacher.subject})`,
+        data: {
+          existingSessionId: existingByTeacher._id,
+          classId: existingByTeacher.classId,
+          subject: existingByTeacher.subject,
+          startedAt: existingByTeacher.startedAt,
+        },
+      })
+    }
+
+    // 3) Si une autre session active existe pour la même classe, on bloque
+    const existingByClass = await ClassSession.findOne({
+      classId: cleanClassId,
+      status: 'active',
+    }).lean()
+
+    if (existingByClass) {
+      return res.status(409).json({
+        success: false,
+        message: `Une session est déjà active pour la classe ${cleanClassId}`,
+        data: {
+          existingSessionId: existingByClass._id,
+          subject: existingByClass.subject,
+          startedAt: existingByClass.startedAt,
+        },
+      })
+    }
+
+    // 4) Sinon on crée une nouvelle session
     const session = await ClassSession.create({
       teacherId,
-      classId:   classId.trim(),
+      classId: cleanClassId,
       subject,
-      status:    'active',
+      status: 'active',
       startedAt: new Date(),
     })
 
-    // ── Réponse — tout ce dont le frontend teacher a besoin ───────────────────
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: 'Session démarrée',
       data: {
-        sessionId:  session._id,   // ← frontend stocke cet ID pour Socket.IO + button presses
-        teacherId:  session.teacherId,
-        classId:    session.classId,
-        subject:    session.subject,
-        status:     session.status,
-        startedAt:  session.startedAt,
+        sessionId: session._id,
+        teacherId: session.teacherId,
+        classId: session.classId,
+        subject: session.subject,
+        status: session.status,
+        startedAt: session.startedAt,
+        endedAt: session.endedAt,
       },
     })
   } catch (err) {
-    // Index unique MongoDB déclenché en cas de race condition
     if (err.code === 11000) {
       return res.status(409).json({
         success: false,
         message: 'Une session active existe déjà pour cette classe (conflit base de données)',
       })
     }
-    res.status(500).json({ success: false, message: err.message })
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    })
   }
 }
 
@@ -120,29 +150,36 @@ if (existingByClass) {
 async function end(req, res) {
   try {
     const session = await endSession(req.params.id)
-    res.json({ success: true, message: 'Session terminée', data: session })
+
+    return res.json({
+      success: true,
+      message: 'Session terminée',
+      data: session,
+    })
   } catch (err) {
-    const status = err.message.includes('introuvable') ? 404
-      : err.message.includes('déjà terminée')          ? 409
-      : 500
-    res.status(status).json({ success: false, message: err.message })
+    const status =
+      err.message.includes('introuvable') ? 404 :
+      err.message.includes('déjà terminée') ? 409 :
+      500
+
+    return res.status(status).json({
+      success: false,
+      message: err.message,
+    })
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/sessions/active/:classId
 // ─────────────────────────────────────────────────────────────────────────────
-// Retourne la session active d'une classe.
-// Utilisé par le frontend teacher pour retrouver une session en cours
-// si le teacher recharge la page ou se reconnecte.
 
 async function getActive(req, res) {
   try {
     const session = await ClassSession.findOne({
       classId: req.params.classId,
-      status:  'active',
+      status: 'active',
     })
-      .sort({ startedAt: -1 })  // la plus récente en cas de données incohérentes
+      .sort({ startedAt: -1 })
       .lean()
 
     if (!session) {
@@ -152,9 +189,15 @@ async function getActive(req, res) {
       })
     }
 
-    res.json({ success: true, data: session })
+    return res.json({
+      success: true,
+      data: session,
+    })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    })
   }
 }
 
@@ -167,30 +210,53 @@ async function getById(req, res) {
     const session = await ClassSession.findById(req.params.id).lean()
 
     if (!session) {
-      return res.status(404).json({ success: false, message: 'Session introuvable' })
+      return res.status(404).json({
+        success: false,
+        message: 'Session introuvable',
+      })
     }
 
-    res.json({ success: true, data: session })
+    return res.json({
+      success: true,
+      data: session,
+    })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    })
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/sessions/teacher/:teacherId
 // ─────────────────────────────────────────────────────────────────────────────
-// Historique des sessions d'un teacher (utile pour le dashboard).
 
 async function getByTeacher(req, res) {
   try {
-    const sessions = await ClassSession.find({ teacherId: req.params.teacherId })
+    const sessions = await ClassSession.find({
+      teacherId: req.params.teacherId,
+    })
       .sort({ startedAt: -1 })
       .lean()
 
-    res.json({ success: true, count: sessions.length, data: sessions })
+    return res.json({
+      success: true,
+      count: sessions.length,
+      data: sessions,
+    })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    })
   }
 }
 
-module.exports = { start, end, getActive, getById, getByTeacher }
+module.exports = {
+  start,
+  end,
+  getActive,
+  getById,
+  getByTeacher,
+}

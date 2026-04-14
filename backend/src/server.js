@@ -39,6 +39,8 @@ const start = async () => {
       methods: ['GET', 'POST'],
     },
   })
+  // Après : const io = new Server(server, { ... })
+app.set('io', io)   // ← permet aux controllers d'accéder à io via req.app.get('io')
 
   // ── 4. Singleton ─────────────────────────────────────────────────────────
   // Stocke io AVANT d'enregistrer les handlers,

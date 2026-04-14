@@ -99,14 +99,24 @@ const ClassCard = ({ cls, onClick, onDelete }) => {
       </div>
 
       <div style={styles.cardBody} onClick={() => onClick(cls)}>
-        <h3
-          style={{
-            ...styles.className,
-            color: hov ? CARD_COLOR : '#1A1830',
-          }}
-        >
-          {cls.name}
-        </h3>
+        <div>
+          <h3
+            style={{
+              ...styles.className,
+              color: hov ? CARD_COLOR : '#1A1830',
+            }}
+          >
+            {cls.name}
+          </h3>
+
+          <p style={styles.teacherName}>
+            Teacher: {cls.teacherName || 'Unknown'}
+          </p>
+
+          <p style={styles.classCode}>
+            Code: {cls.classCode}
+          </p>
+        </div>
       </div>
     </div>
   )
@@ -125,21 +135,18 @@ const styles = {
     flexDirection: 'column',
     minHeight: 220,
   },
-
   strip: {
     height: 5,
     width: '100%',
     transition: 'opacity 300ms ease',
     flexShrink: 0,
   },
-
   cardTop: {
     display: 'flex',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     padding: '18px 18px 0',
   },
-
   iconWrap: {
     width: 58,
     height: 58,
@@ -150,11 +157,9 @@ const styles = {
     transition: 'all 350ms cubic-bezier(0.34,1.56,0.64,1)',
     cursor: 'pointer',
   },
-
   menuWrap: {
     position: 'relative',
   },
-
   menuBtn: {
     background: 'none',
     border: 'none',
@@ -167,7 +172,6 @@ const styles = {
     lineHeight: 0.8,
     letterSpacing: 2,
   },
-
   menuDropdown: {
     position: 'absolute',
     right: 0,
@@ -180,7 +184,6 @@ const styles = {
     zIndex: 10,
     minWidth: 160,
   },
-
   menuItem: {
     display: 'block',
     width: '100%',
@@ -194,7 +197,6 @@ const styles = {
     color: '#4A4666',
     cursor: 'pointer',
   },
-
   cardBody: {
     padding: '24px 18px 0',
     cursor: 'pointer',
@@ -202,7 +204,6 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
   },
-
   className: {
     fontFamily: "'Baloo 2', cursive",
     fontSize: '1.7rem',
@@ -210,6 +211,18 @@ const styles = {
     letterSpacing: '-0.02em',
     margin: 0,
     transition: 'color 250ms ease',
+  },
+  teacherName: {
+    margin: '6px 0 0',
+    fontSize: '0.86rem',
+    fontWeight: 700,
+    color: '#7C7698',
+  },
+  classCode: {
+    margin: '6px 0 0',
+    fontSize: '0.82rem',
+    fontWeight: 800,
+    color: '#9B8EFF',
   },
 }
 
