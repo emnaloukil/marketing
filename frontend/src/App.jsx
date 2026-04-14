@@ -7,8 +7,12 @@ import { useEffect, Component } from 'react'
 import RoleSelectPage      from './pages/RoleSelectPage'
 import TeacherRegisterPage from './pages/teacher/TeacherRegisterPage'
 import TeacherLoginPage from './pages/teacher/TeacherLoginPage'
-import TeacherDashboard from './pages/teacher/TeacherDashboard'
-import BuddyPage from './pages/student/BuddyPage'
+import TeacherClassesPage from './pages/teacher/TeacherClassesPage'
+import StudentLoginPage  from './pages/student/StudentLoginPage'
+import ClassroomsPage    from './pages/student/Classroomspage'
+import ClassroomPage     from './pages/student/Classroompage'
+import CoursePage        from './pages/student/Coursepage'
+import BuddyPage         from './pages/student/BuddyPage'
 const App = () => {
   return (
     <Routes>
@@ -20,7 +24,7 @@ const App = () => {
       {/* ── Teacher ──────────────────────────────────────────────── */}
       <Route path="/teacher/register" element={<TeacherRegisterPage />} />
       <Route path="/teacher/login" element={<TeacherLoginPage />} />
-      <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
+      <Route path="/teacher/dashboard" element={<TeacherClassesPage />} />
 
       <Route
         path="/teacher/session"
@@ -60,16 +64,27 @@ const App = () => {
       {/* ── Student ──────────────────────────────────────────────── */}
       <Route
         path="/student/login"
-        element={<Placeholder title="Student Login" color="#4ECDC4" />}
+        element={<StudentLoginPage />}
       />
       <Route
         path="/student/dashboard"
-        element={<Placeholder title="Student Dashboard" color="#4ECDC4" />}
+        element={<ClassroomsPage />}
       />
-      {/* ── Student ──────────────────────────────────────────────── */}
-      <Route path="/Student/buddy" element={<BuddyPage/>} />
+      <Route
+        path="/student/classrooms"
+        element={<ClassroomsPage />}
+      />
+      <Route
+        path="/student/classroom/:id"
+        element={<ClassroomPage />}
+      />
+      <Route
+        path="/student/course/:id"
+        element={<CoursePage />}
+      />
+      <Route path="/student/buddy" element={<BuddyPage />} />
    
-      {/* ── Fallback ─────────────────────────────────────────────── */}
+      {/* ── Fallback ───────────────────────────────────────────────── */}
       <Route path="*" element={<Navigate to="/" replace />} />
 
     </Routes>

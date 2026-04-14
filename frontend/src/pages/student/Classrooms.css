@@ -1,4 +1,6 @@
-.classrooms-page { padding: 16px 0 40px; }
+.classrooms-page { 
+  padding: calc(var(--header-height) + 16px) 0 40px; 
+}
 
 /* Welcome banner */
 .welcome-banner {

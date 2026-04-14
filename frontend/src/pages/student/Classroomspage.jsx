@@ -1,5 +1,7 @@
 import React from "react";
 import { useStudent } from "../../context/Studentcontext";
+import Header from "../../components/student/Header";
+import ChatbotFAB from "../../components/student/Chatbotfab";
 import "./Classrooms.css";
 
 export default function ClassroomsPage() {
@@ -13,6 +15,7 @@ export default function ClassroomsPage() {
 
   return (
     <div className="classrooms-page page-enter">
+      <Header />
       <div className="container">
         {/* Welcome banner */}
         <div className="welcome-banner" style={{ background: theme.colors.headerGradient }}>
@@ -76,6 +79,7 @@ export default function ClassroomsPage() {
           ))}
         </div>
       </div>
+      <ChatbotFAB />
     </div>
   );
 }

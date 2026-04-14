@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { useStudent } from "../../context/Studentcontext";
+import Header from "../../components/student/Header";
+import ChatbotFAB from "../../components/student/Chatbotfab";
 import AIOutputModal from "../../components/student/Aioutputmodal";
 import "./Courspage.css";
 
@@ -100,6 +102,7 @@ export default function CoursePage() {
 
   return (
     <div className="course-page page-enter">
+      <Header />
       <div className="container">
         <div className="course-layout">
           {/* Left: PDF Viewer simulation */}
@@ -264,6 +267,7 @@ export default function CoursePage() {
           onClose={() => setModalAction(null)}
         />
       )}
+      <ChatbotFAB />
     </div>
   );
 }

@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import Header from '../../components/student/Header'
+import ChatbotFAB from '../../components/student/Chatbotfab'
 
 const API_BASE = 'http://localhost:8000'
 
@@ -193,6 +195,7 @@ export default function BuddyPage({ studentName = 'Luna Martinez' }) {
 
   return (
     <div style={s.page}>
+      <Header />
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
         * { box-sizing:border-box; margin:0; padding:0; }
@@ -354,12 +357,13 @@ export default function BuddyPage({ studentName = 'Luna Martinez' }) {
           </div>
         </div>
       </div>
+      <ChatbotFAB />
     </div>
   )
 }
 
 const s = {
-  page:           { fontFamily:"'Nunito',sans-serif", minHeight:'100vh', background:'#FDF8EE', display:'flex', flexDirection:'column' },
+  page:           { fontFamily:"'Nunito',sans-serif", minHeight:'100vh', background:'#FDF8EE', display:'flex', flexDirection:'column', paddingTop: 'calc(var(--header-height) + 16px)' },
   header:         { background:'linear-gradient(135deg,#3B82F6 0%,#06B6D4 100%)', position:'relative', flexShrink:0 },
   headerInner:    { display:'flex', alignItems:'center', gap:16, padding:'20px 40px 52px', maxWidth:1200, margin:'0 auto', width:'100%' },
   headerWave:     { position:'absolute', bottom:-1, left:0, right:0, height:36, background:'#FDF8EE', borderTopLeftRadius:'50% 100%', borderTopRightRadius:'50% 100%' },

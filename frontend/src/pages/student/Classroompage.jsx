@@ -1,6 +1,8 @@
 import React from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useStudent } from "../../context/Studentcontext";
+import Header from "../../components/student/Header";
+import ChatbotFAB from "../../components/student/Chatbotfab";
 import "./Classroompage.css";
 
 export default function ClassroomPage() {
@@ -25,6 +27,7 @@ export default function ClassroomPage() {
 
   return (
     <div className="classroom-page page-enter">
+      <Header />
       <div className="container">
         {/* Classroom hero */}
         <div
@@ -81,6 +84,7 @@ export default function ClassroomPage() {
           ))}
         </div>
       </div>
+      <ChatbotFAB />
     </div>
   );
 }

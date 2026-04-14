@@ -1,4 +1,6 @@
-.course-page { padding: 16px 0 40px; }
+.course-page { 
+  padding: calc(var(--header-height) + 16px) 0 40px; 
+}
 
 .course-layout {
   display: grid;
