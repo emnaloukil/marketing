@@ -50,21 +50,19 @@ export const classesAPI = {
 
 export const liveSessionAPI = {
   getClassDetails: (classId) =>
-    api.get(`/teacher/live/classes/${classId}`).then((res) => res.data),
+    request('GET', `/teacher/live/classes/${classId}`),
 
   getOrCreateSession: ({ classId, subject }) =>
-    api.post(`/teacher/live/session/start`, { classId, subject }).then((res) => res.data),
+    request('POST', `/teacher/live/session/start`, { classId, subject }),
 
   getSnapshot: (sessionId) =>
-    api.get(`/teacher/live/session/${sessionId}/snapshot`).then((res) => res.data),
+    request('GET', `/teacher/live/session/${sessionId}/snapshot`),
 
   getMaterials: ({ classId, subject }) =>
-    api.get(`/teacher/live/materials`, { params: { classId, subject } }).then((res) => res.data),
+    request('GET', `/teacher/live/materials?classId=${classId}&subject=${subject}`),
 
   uploadMaterial: (formData) =>
-    api.post(`/teacher/live/materials/upload`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    }).then((res) => res.data),
+    request('POST', `/teacher/live/materials/upload`, formData),
 }
 
 
@@ -96,6 +94,15 @@ export const parentAPI = {
 
 export const studentAPI = {
   getProfile: (studentId) => request('GET', `/student-auth/profile/${studentId}`),
+}
+
+export const studentsAPI = {
+  getClassrooms: (studentId) => request('GET', `/students/${studentId}/classrooms`),
+  joinClassroom: (studentId, classroomCode) => request('POST', `/students/${studentId}/join`, { classroomCode }),
+}
+
+export const materialsAPI = {
+  getByClassroom: (classroomId) => request('GET', `/materials/classroom/${classroomId}`),
 }
 
 export default {

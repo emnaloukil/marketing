@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useStudent } from "../../context/Studentcontext";
 import Header from "../../components/student/Header";
 import ChatbotFAB from "../../components/student/Chatbotfab";
@@ -6,12 +6,40 @@ import "./Classrooms.css";
 
 export default function ClassroomsPage() {
   const { student, classrooms, enterClassroom, theme } = useStudent();
+  const [showJoinModal, setShowJoinModal] = useState(false);
+  const [classroomCode, setClassroomCode] = useState("");
 
   const completedCount = classrooms.reduce(
     (acc, cls) => acc + cls.courses.filter((c) => c.completed).length,
     0
   );
   const totalCourses = classrooms.reduce((acc, cls) => acc + cls.courses.length, 0);
+
+  const handleJoinClassroom = () => {
+    if (!classroomCode.trim()) return;
+
+    // For now, create a mock classroom with the entered code
+    // In a real implementation, this would call an API to join the classroom
+    // const newClassroom = {
+    //   id: `cls_${Date.now()}`,
+    //   name: `Classroom ${classroomCode}`,
+    //   teacher: "New Teacher",
+    //   teacherAvatar: "👩‍🏫",
+    //   color: "#7C3AED",
+    //   emoji: "🏫",
+    //   studentsCount: 25,
+    //   coursesCount: 5,
+    //   lastActivity: "Just joined",
+    //   courses: [
+    //     { id: `crs_${Date.now()}_1`, title: "Welcome Lesson", pages: 8, uploadedAt: new Date().toLocaleDateString(), thumbnail: "📚", size: "1.2 MB", completed: false },
+    //   ],
+    // };
+
+    // Add to classrooms (in a real app, this would update the context/state)
+    // For now, we'll just close the modal
+    setClassroomCode("");
+    setShowJoinModal(false);
+  };
 
   return (
     <div className="classrooms-page page-enter">
@@ -67,6 +95,22 @@ export default function ClassroomsPage() {
           <span className="badge">{classrooms.length} active</span>
         </div>
 
+        {/* Add Classroom Button */}
+        <div className="add-classroom-section">
+          <button
+            className="add-classroom-button"
+            onClick={() => setShowJoinModal(true)}
+            aria-label="Join new classroom"
+            title="Join new classroom"
+          >
+            <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            Join New Classroom
+          </button>
+        </div>
+
         {/* Classrooms grid */}
         <div className="classrooms-grid">
           {classrooms.map((classroom, i) => (
@@ -80,6 +124,50 @@ export default function ClassroomsPage() {
         </div>
       </div>
       <ChatbotFAB />
+
+      {/* Join Classroom Modal */}
+      {showJoinModal && (
+        <div className="join-modal-overlay" onClick={() => setShowJoinModal(false)}>
+          <div className="join-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="join-modal-header">
+              <h3>Join New Classroom</h3>
+              <button
+                className="close-btn"
+                onClick={() => setShowJoinModal(false)}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+            <div className="join-modal-body">
+              <p>Enter the classroom code provided by your teacher:</p>
+              <input
+                type="text"
+                value={classroomCode}
+                onChange={(e) => setClassroomCode(e.target.value.toUpperCase())}
+                placeholder="e.g., CLS-1234"
+                className="code-input"
+                autoFocus
+              />
+            </div>
+            <div className="join-modal-footer">
+              <button
+                className="cancel-btn"
+                onClick={() => setShowJoinModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="join-btn"
+                onClick={handleJoinClassroom}
+                disabled={!classroomCode.trim()}
+              >
+                Join Classroom
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
