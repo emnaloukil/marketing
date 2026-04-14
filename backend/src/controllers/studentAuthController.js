@@ -2,7 +2,6 @@
 // Rôle : register, login et profile pour l'enfant.
 // Pas d'activation parent nécessaire — l'enfant s'inscrit directement.
 
-const jwt     = require('jsonwebtoken')
 const Student = require('../models/Student')
 const ClassSession = require('../models/Classsession')
 
@@ -46,16 +45,8 @@ function isValidPIN(pin) {
   return /^\d{4}$/.test(String(pin))
 }
 
-/**
- * Génère un token JWT avec role student.
- */
-function generateToken(id) {
-  return jwt.sign(
-    { id, role: 'student' },
-    process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
-  )
-}
+
+
 
 /**
  * Formate la réponse sans pin.
@@ -131,13 +122,12 @@ async function register(req, res) {
       pin:            String(pin),   // sera hashé par le hook
     })
 
-    const token = generateToken(student._id.toString())
+  
 
     res.status(201).json({
       success: true,
       message: `Compte créé pour ${student.firstName} !`,
       data: {
-        token,
         studentCode,   // retourné en clair UNE SEULE FOIS — à noter
         student: buildStudentResponse(student),
       },
@@ -198,14 +188,12 @@ async function login(req, res) {
       })
     }
 
-    // ── Générer le token ──────────────────────────────────────────────────────
-    const token = generateToken(student._id.toString())
+   
 
     res.json({
       success: true,
       message: `Bonjour ${student.firstName} ! 👋`,
       data: {
-        token,
         student: buildStudentResponse(student),
       },
     })

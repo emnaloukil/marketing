@@ -1,15 +1,5 @@
-// studentController.js
-// Rôle : lire req → appeler studentService → répondre avec res.json
-// Aucune logique métier ici.
-
 const studentService = require('../services/studentService')
 
-/**
- * POST /api/students
- * Crée un nouvel élève.
- *
- * Body : { firstName, lastName, dateOfBirth, classId, supportProfile?, parent?, teacher? }
- */
 async function create(req, res) {
   try {
     const student = await studentService.createStudent(req.body)
@@ -20,11 +10,6 @@ async function create(req, res) {
   }
 }
 
-/**
- * GET /api/students
- * Liste tous les élèves actifs.
- * Query params optionnels : ?supportProfile=adhd, ?isActive=false
- */
 async function getAll(req, res) {
   try {
     const filters = {}
@@ -32,8 +17,8 @@ async function getAll(req, res) {
     if (req.query.supportProfile) {
       filters.supportProfile = req.query.supportProfile
     }
+
     if (req.query.isActive !== undefined) {
-      // Le query param est une string — on le convertit en booléen
       filters.isActive = req.query.isActive === 'true'
     }
 
@@ -45,10 +30,6 @@ async function getAll(req, res) {
   }
 }
 
-/**
- * GET /api/students/:id
- * Récupère un élève par son ID.
- */
 async function getById(req, res) {
   try {
     const student = await studentService.getStudentById(req.params.id)
@@ -59,10 +40,6 @@ async function getById(req, res) {
   }
 }
 
-/**
- * GET /api/students/class/:classId
- * Récupère tous les élèves actifs d'une classe.
- */
 async function getByClass(req, res) {
   try {
     const students = await studentService.getStudentsByClass(req.params.classId)
@@ -73,28 +50,63 @@ async function getByClass(req, res) {
   }
 }
 
-/**
- * PATCH /api/students/:id
- * Met à jour partiellement un élève.
- * Body : seulement les champs à modifier
- */
+async function joinClassByCode(req, res) {
+  try {
+    const student = await studentService.joinClassByCode(
+      req.params.id,
+      req.body.classCode
+    )
+
+    res.json({
+      success: true,
+      message: 'Classe rejointe avec succès',
+      data: student,
+    })
+  } catch (err) {
+    const status =
+      err.message.includes('introuvable') ? 404 :
+      err.message.includes('requis') ? 400 :
+      500
+
+    res.status(status).json({
+      success: false,
+      message: err.message,
+    })
+  }
+}
+
+async function getClassroom(req, res) {
+  try {
+    const classroom = await studentService.getStudentClassroom(req.params.id)
+    res.json({
+      success: true,
+      data: classroom,
+    })
+  } catch (err) {
+    const status =
+      err.message.includes('introuvable') ? 404 :
+      err.message.includes('requis') ? 400 :
+      500
+
+    res.status(status).json({
+      success: false,
+      message: err.message,
+    })
+  }
+}
+
 async function update(req, res) {
   try {
     const student = await studentService.updateStudent(req.params.id, req.body)
     res.json({ success: true, message: 'Élève mis à jour', data: student })
   } catch (err) {
     const status = err.message.includes('introuvable') ? 404
-      : err.message.includes('invalide')  ? 400
+      : err.message.includes('invalide') ? 400
       : 500
     res.status(status).json({ success: false, message: err.message })
   }
 }
 
-/**
- * DELETE /api/students/:id
- * Soft delete — passe isActive à false.
- * Les données historiques (ButtonEvents) sont conservées.
- */
 async function remove(req, res) {
   try {
     const student = await studentService.deleteStudent(req.params.id)
@@ -107,4 +119,13 @@ async function remove(req, res) {
   }
 }
 
-module.exports = { create, getAll, getById, getByClass, update, remove }
+module.exports = {
+  create,
+  getAll,
+  getById,
+  getByClass,
+  joinClassByCode,
+  getClassroom,
+  update,
+  remove,
+}

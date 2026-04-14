@@ -83,7 +83,10 @@ async function createClass(req, res) {
       })
     }
 
-    return res.status(500).json({ success: false, message: err.message })
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    })
   }
 }
 
@@ -109,7 +112,49 @@ async function getClassesByTeacher(req, res) {
       })),
     })
   } catch (err) {
-    return res.status(500).json({ success: false, message: err.message })
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    })
+  }
+}
+
+async function getClassByCode(req, res) {
+  try {
+    const code = String(req.params.classCode || '').trim().toUpperCase()
+
+    if (!code) {
+      return res.status(400).json({
+        success: false,
+        message: 'classCode est requis',
+      })
+    }
+
+    const cls = await Class.findOne({ classCode: code }).lean()
+
+    if (!cls) {
+      return res.status(404).json({
+        success: false,
+        message: 'Classe introuvable avec ce code',
+      })
+    }
+
+    const teacher = await Teacher.findById(cls.teacherId).lean()
+
+    return res.json({
+      success: true,
+      data: {
+        ...cls,
+        teacherName: teacher
+          ? `${teacher.firstName || ''} ${teacher.lastName || ''}`.trim()
+          : '',
+      },
+    })
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    })
   }
 }
 
@@ -136,7 +181,10 @@ async function getClassById(req, res) {
       },
     })
   } catch (err) {
-    return res.status(500).json({ success: false, message: err.message })
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    })
   }
 }
 
@@ -187,7 +235,10 @@ async function updateClass(req, res) {
       })
     }
 
-    return res.status(500).json({ success: false, message: err.message })
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    })
   }
 }
 
@@ -196,7 +247,10 @@ async function deleteClass(req, res) {
     const cls = await Class.findByIdAndDelete(req.params.id)
 
     if (!cls) {
-      return res.status(404).json({ success: false, message: 'Classe introuvable' })
+      return res.status(404).json({
+        success: false,
+        message: 'Classe introuvable',
+      })
     }
 
     return res.json({
@@ -205,13 +259,17 @@ async function deleteClass(req, res) {
       data: { id: cls._id },
     })
   } catch (err) {
-    return res.status(500).json({ success: false, message: err.message })
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    })
   }
 }
 
 module.exports = {
   createClass,
   getClassesByTeacher,
+  getClassByCode,
   getClassById,
   updateClass,
   deleteClass,
