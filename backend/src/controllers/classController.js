@@ -1,22 +1,39 @@
-// classController.js
 const Class = require('../models/Class')
+const Teacher = require('../models/Teacher')
 
-// ─────────────────────────────────────────────────────────────────────────────
-// POST /api/classes
-// Crée une nouvelle classe pour un teacher.
-// teacherId vient du body pour le MVP.
-// ─────────────────────────────────────────────────────────────────────────────
+function generateClassCode(name = '') {
+  const prefix = name
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .toUpperCase()
+    .slice(0, 4) || 'CLAS'
+
+  const random = Math.random().toString(36).slice(2, 6).toUpperCase()
+  return `${prefix}-${random}`
+}
+
+async function getUniqueClassCode(name) {
+  let code = ''
+  let exists = true
+
+  while (exists) {
+    code = generateClassCode(name)
+    exists = await Class.findOne({ classCode: code }).lean()
+  }
+
+  return code
+}
+
 async function createClass(req, res) {
   try {
-    const { teacherId, name} = req.body
+    const { teacherId, name } = req.body
 
-    // Validation
-    if (!teacherId || !teacherId.trim()) {
+    if (!teacherId || !String(teacherId).trim()) {
       return res.status(400).json({
         success: false,
         message: 'teacherId est requis',
       })
     }
+
     if (!name || !name.trim()) {
       return res.status(400).json({
         success: false,
@@ -24,66 +41,78 @@ async function createClass(req, res) {
       })
     }
 
-    // Vérifier doublon
+    const cleanName = name.trim()
+
     const existing = await Class.findOne({
       teacherId,
-      name: name.trim(),
+      name: cleanName,
     }).lean()
 
     if (existing) {
       return res.status(409).json({
         success: false,
-        message: `Vous avez déjà une classe nommée "${name.trim()}"`,
+        message: `Vous avez déjà une classe nommée "${cleanName}"`,
       })
     }
 
+    const classCode = await getUniqueClassCode(cleanName)
+
     const newClass = await Class.create({
       teacherId,
-      name:    name.trim(),
+      name: cleanName,
+      classCode,
     })
 
-    res.status(201).json({
+    const teacher = await Teacher.findById(teacherId).lean()
+
+    return res.status(201).json({
       success: true,
       message: 'Classe créée',
-      data:    newClass,
+      data: {
+        ...newClass.toObject(),
+        teacherName: teacher
+          ? `${teacher.firstName || ''} ${teacher.lastName || ''}`.trim()
+          : '',
+      },
     })
   } catch (err) {
     if (err.code === 11000) {
       return res.status(409).json({
         success: false,
-        message: 'Une classe avec ce nom existe déjà pour ce teacher',
+        message: 'Une classe avec ce nom ou ce code existe déjà',
       })
     }
-    res.status(500).json({ success: false, message: err.message })
+
+    return res.status(500).json({ success: false, message: err.message })
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GET /api/classes/teacher/:teacherId
-// Récupère toutes les classes d'un teacher.
-// ─────────────────────────────────────────────────────────────────────────────
 async function getClassesByTeacher(req, res) {
   try {
     const { teacherId } = req.params
+
+    const teacher = await Teacher.findById(teacherId).lean()
+    const teacherName = teacher
+      ? `${teacher.firstName || ''} ${teacher.lastName || ''}`.trim()
+      : ''
 
     const classes = await Class.find({ teacherId })
       .sort({ createdAt: -1 })
       .lean()
 
-    res.json({
+    return res.json({
       success: true,
-      count:   classes.length,
-      data:    classes,
+      count: classes.length,
+      data: classes.map((cls) => ({
+        ...cls,
+        teacherName,
+      })),
     })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    return res.status(500).json({ success: false, message: err.message })
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GET /api/classes/:id
-// Récupère une classe par son ID.
-// ─────────────────────────────────────────────────────────────────────────────
 async function getClassById(req, res) {
   try {
     const cls = await Class.findById(req.params.id).lean()
@@ -95,22 +124,28 @@ async function getClassById(req, res) {
       })
     }
 
-    res.json({ success: true, data: cls })
+    const teacher = await Teacher.findById(cls.teacherId).lean()
+
+    return res.json({
+      success: true,
+      data: {
+        ...cls,
+        teacherName: teacher
+          ? `${teacher.firstName || ''} ${teacher.lastName || ''}`.trim()
+          : '',
+      },
+    })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    return res.status(500).json({ success: false, message: err.message })
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PATCH /api/classes/:id
-// Met à jour une classe.
-// ─────────────────────────────────────────────────────────────────────────────
 async function updateClass(req, res) {
   try {
-    const { name} = req.body
+    const { name } = req.body
     const updates = {}
 
-    if (name    !== undefined) updates.name    = name.trim()
+    if (name !== undefined) updates.name = name.trim()
 
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({
@@ -123,13 +158,27 @@ async function updateClass(req, res) {
       req.params.id,
       { $set: updates },
       { new: true, runValidators: true }
-    )
+    ).lean()
 
     if (!cls) {
-      return res.status(404).json({ success: false, message: 'Classe introuvable' })
+      return res.status(404).json({
+        success: false,
+        message: 'Classe introuvable',
+      })
     }
 
-    res.json({ success: true, message: 'Classe mise à jour', data: cls })
+    const teacher = await Teacher.findById(cls.teacherId).lean()
+
+    return res.json({
+      success: true,
+      message: 'Classe mise à jour',
+      data: {
+        ...cls,
+        teacherName: teacher
+          ? `${teacher.firstName || ''} ${teacher.lastName || ''}`.trim()
+          : '',
+      },
+    })
   } catch (err) {
     if (err.code === 11000) {
       return res.status(409).json({
@@ -137,14 +186,11 @@ async function updateClass(req, res) {
         message: 'Une classe avec ce nom existe déjà',
       })
     }
-    res.status(500).json({ success: false, message: err.message })
+
+    return res.status(500).json({ success: false, message: err.message })
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// DELETE /api/classes/:id
-// Supprime une classe.
-// ─────────────────────────────────────────────────────────────────────────────
 async function deleteClass(req, res) {
   try {
     const cls = await Class.findByIdAndDelete(req.params.id)
@@ -153,13 +199,13 @@ async function deleteClass(req, res) {
       return res.status(404).json({ success: false, message: 'Classe introuvable' })
     }
 
-    res.json({
+    return res.json({
       success: true,
       message: `Classe "${cls.name}" supprimée`,
-      data:    { id: cls._id },
+      data: { id: cls._id },
     })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    return res.status(500).json({ success: false, message: err.message })
   }
 }
 

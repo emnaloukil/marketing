@@ -47,9 +47,12 @@ const parentChildRoutes = require('./routes/parentChildRoutes');
 const studentAuthRoutes = require('./routes/studentAuthRoutes');
 const classRoutes = require('./routes/classRoutes');
 const materialRoutes = require('./routes/materialRoutes');
+const liveRoutes = require('./routes/liveRoutes');
 
-app.use('/api/classes', classRoutes);
+
+app.use('/api/live',      liveRoutes);
 app.use('/api/materials', materialRoutes);
+app.use('/api/classes', classRoutes);
 app.use('/api/student-auth', studentAuthRoutes);
 app.use('/api/parent/children', parentChildRoutes);
 app.use('/api/auth', authRoutes);
@@ -59,7 +62,7 @@ app.use('/api/students', studentRoutes);
 app.use("/api/sessions", sessionRoutes);
 app.use("/api/events",   eventRoutes);
 app.use("/api/teacher",  teacherRoutes);
-
+app.use('/uploads', express.static('uploads'))
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get("/api/health", (req, res) => {
   res.json({ success: true, message: "EduKids API opérationnelle" });

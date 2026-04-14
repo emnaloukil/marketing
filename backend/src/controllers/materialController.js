@@ -1,199 +1,51 @@
 const Material = require('../models/Material')
 
-// Create a new material
-const createMaterial = async (req, res) => {
+// GET /api/materials?classId=&subject=&teacherId=
+async function getMaterials(req, res) {
   try {
-    const {
-      teacherId,
-      classId,
-      sessionId,
-      subject,
-      title,
-      fileUrl,
-      uploadedBy,
-    } = req.body
+    const { classId, subject, teacherId } = req.query
+    if (!classId) return res.status(400).json({ success: false, message: 'classId requis' })
 
-    if (!teacherId || !classId || !subject || !title || !fileUrl || !uploadedBy) {
-      return res.status(400).json({
-        message:
-          'teacherId, classId, subject, title, fileUrl and uploadedBy are required',
-      })
-    }
+    const filter = { classId }
+    if (subject)   filter.subject   = subject.toLowerCase()
+    if (teacherId) filter.teacherId = teacherId
 
-    const newMaterial = await Material.create({
-      teacherId,
-      classId,
-      sessionId: sessionId || null,
-      subject,
-      title: title.trim(),
-      fileUrl: fileUrl.trim(),
-      uploadedBy,
-    })
-
-    return res.status(201).json({
-      message: 'Material created successfully',
-      material: newMaterial,
-    })
-  } catch (error) {
-    console.error('createMaterial error:', error)
-    return res.status(500).json({
-      message: 'Server error while creating material',
-    })
+    const materials = await Material.find(filter).sort({ createdAt: -1 }).lean()
+    res.json({ success: true, count: materials.length, data: materials })
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message })
   }
 }
 
-// Get all materials for one class
-const getMaterialsByClass = async (req, res) => {
+// POST /api/materials
+async function addMaterial(req, res) {
   try {
-    const { classId } = req.params
-    const { subject } = req.query
-
-    if (!classId) {
-      return res.status(400).json({
-        message: 'classId is required',
-      })
+    const { teacherId, classId, subject, title, fileUrl, sessionId, fileSize, mimeType } = req.body
+    if (!teacherId || !classId || !subject || !title || !fileUrl) {
+      return res.status(400).json({ success: false, message: 'teacherId, classId, subject, title et fileUrl sont requis' })
     }
 
-    const query = { classId }
-
-    if (subject) {
-      query.subject = subject
-    }
-
-    const materials = await Material.find(query)
-      .sort({ createdAt: -1 })
-      .populate('classId', 'name icon')
-      .populate('sessionId', 'subject status startedAt endedAt')
-
-    return res.status(200).json({
-      count: materials.length,
-      materials,
+    const material = await Material.create({
+      teacherId, classId, subject: subject.toLowerCase(),
+      title: title.trim(), fileUrl: fileUrl.trim(),
+      sessionId: sessionId || null, fileSize: fileSize || null, mimeType: mimeType || null,
     })
-  } catch (error) {
-    console.error('getMaterialsByClass error:', error)
-    return res.status(500).json({
-      message: 'Server error while fetching materials',
-    })
+
+    res.status(201).json({ success: true, message: 'Fichier ajouté', data: material })
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message })
   }
 }
 
-// Get all materials for one session
-const getMaterialsBySession = async (req, res) => {
+// DELETE /api/materials/:id
+async function deleteMaterial(req, res) {
   try {
-    const { sessionId } = req.params
-
-    if (!sessionId) {
-      return res.status(400).json({
-        message: 'sessionId is required',
-      })
-    }
-
-    const materials = await Material.find({ sessionId })
-      .sort({ createdAt: -1 })
-      .populate('classId', 'name icon')
-
-    return res.status(200).json({
-      count: materials.length,
-      materials,
-    })
-  } catch (error) {
-    console.error('getMaterialsBySession error:', error)
-    return res.status(500).json({
-      message: 'Server error while fetching session materials',
-    })
+    const m = await Material.findByIdAndDelete(req.params.id)
+    if (!m) return res.status(404).json({ success: false, message: 'Fichier introuvable' })
+    res.json({ success: true, message: `"${m.title}" supprimé`, data: { id: m._id } })
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message })
   }
 }
 
-// Get one material by id
-const getMaterialById = async (req, res) => {
-  try {
-    const { id } = req.params
-
-    const material = await Material.findById(id)
-      .populate('classId', 'name icon')
-      .populate('sessionId', 'subject status')
-
-    if (!material) {
-      return res.status(404).json({
-        message: 'Material not found',
-      })
-    }
-
-    return res.status(200).json({
-      material,
-    })
-  } catch (error) {
-    console.error('getMaterialById error:', error)
-    return res.status(500).json({
-      message: 'Server error while fetching material',
-    })
-  }
-}
-
-// Update a material
-const updateMaterial = async (req, res) => {
-  try {
-    const { id } = req.params
-    const { subject, title, fileUrl, sessionId } = req.body
-
-    const material = await Material.findById(id)
-
-    if (!material) {
-      return res.status(404).json({
-        message: 'Material not found',
-      })
-    }
-
-    if (subject) material.subject = subject
-    if (title) material.title = title.trim()
-    if (fileUrl) material.fileUrl = fileUrl.trim()
-    if (sessionId !== undefined) material.sessionId = sessionId || null
-
-    await material.save()
-
-    return res.status(200).json({
-      message: 'Material updated successfully',
-      material,
-    })
-  } catch (error) {
-    console.error('updateMaterial error:', error)
-    return res.status(500).json({
-      message: 'Server error while updating material',
-    })
-  }
-}
-
-// Delete a material
-const deleteMaterial = async (req, res) => {
-  try {
-    const { id } = req.params
-
-    const material = await Material.findById(id)
-
-    if (!material) {
-      return res.status(404).json({
-        message: 'Material not found',
-      })
-    }
-
-    await Material.findByIdAndDelete(id)
-
-    return res.status(200).json({
-      message: 'Material deleted successfully',
-    })
-  } catch (error) {
-    console.error('deleteMaterial error:', error)
-    return res.status(500).json({
-      message: 'Server error while deleting material',
-    })
-  }
-}
-
-module.exports = {
-  createMaterial,
-  getMaterialsByClass,
-  getMaterialsBySession,
-  getMaterialById,
-  updateMaterial,
-  deleteMaterial,
-}
+module.exports = { getMaterials, addMaterial, deleteMaterial }

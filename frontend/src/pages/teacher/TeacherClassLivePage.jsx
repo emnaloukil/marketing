@@ -1,448 +1,842 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { useParams, useLocation, useNavigate } from 'react-router-dom'
 import { io } from 'socket.io-client'
-import { liveSessionAPI } from '../../api/client'
+import { liveAPI, materialsAPI } from '../../api/liveApi'
+import AddFileModal from '../../components/live/AddFileModal'
 
-const SUBJECT_OPTIONS = [
-  { value: 'reading', label: 'Reading' },
-  { value: 'sciences', label: 'Sciences' },
-  { value: 'mathematics', label: 'Mathematics' },
-]
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000'
 
-const TeacherClassLivePage = () => {
+const SUBJECT_CFG = {
+  mathematics: { color: '#9B8EFF', light: '#F3F0FF', emoji: '🔢', label: 'Mathematics' },
+  reading: { color: '#FF6B6B', light: '#FFF0F0', emoji: '📖', label: 'Reading' },
+  sciences: { color: '#4ECDC4', light: '#F0FFFE', emoji: '🔬', label: 'Sciences' },
+}
+
+const TREND_CFG = {
+  improving: { color: '#4ECDC4', label: '↑ Improving' },
+  stable_good: { color: '#9B8EFF', label: '→ Stable (good)' },
+  stable_bad: { color: '#FFB347', label: '→ Stagnating' },
+  degrading: { color: '#FF6B6B', label: '↓ Degrading' },
+  recovering: { color: '#FFB347', label: '↗ Recovering' },
+}
+
+export default function TeacherClassLivePage() {
   const { classId } = useParams()
-  const location = useLocation()
+  const { state } = useLocation()
   const navigate = useNavigate()
   const socketRef = useRef(null)
-  const fileInputRef = useRef(null)
+  const sessionRef = useRef(null)
 
-  const [classInfo, setClassInfo] = useState(location.state?.cls || null)
-  const [subject, setSubject] = useState('reading')
+  const cls = state?.cls || {
+    id: classId,
+    _id: classId,
+    name: classId,
+    emoji: '🏫',
+    color: '#9B8EFF',
+  }
+
+  const storedUser = JSON.parse(localStorage.getItem('ek_user') || '{}')
+  const teacherId = storedUser?._id || storedUser?.id || ''
+
+  const [subject, setSubject] = useState('')
   const [session, setSession] = useState(null)
   const [snapshot, setSnapshot] = useState(null)
   const [materials, setMaterials] = useState([])
-  const [pageLoading, setPageLoading] = useState(true)
-  const [sessionLoading, setSessionLoading] = useState(false)
-  const [uploading, setUploading] = useState(false)
+  const [socketStatus, setSocketStatus] = useState('disconnected')
+  const [showFileModal, setShowFileModal] = useState(false)
+  const [sessionEnded, setSessionEnded] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [loadingFiles, setLoadingFiles] = useState(false)
   const [error, setError] = useState('')
-  const [uploadError, setUploadError] = useState('')
+  const [ending, setEnding] = useState(false)
 
-  const studentRows = useMemo(() => {
-    const studentScores = snapshot?.studentScores || {}
-    const countsByStudent = snapshot?.countsByStudent || {}
+  const normalizedClassId = cls?._id || cls?.id || classId
+  const sc = SUBJECT_CFG[subject] || SUBJECT_CFG.mathematics
 
-    return Object.keys(studentScores).map((studentId) => ({
-      studentId,
-      score: studentScores[studentId] ?? 0,
-      counts: countsByStudent[studentId] || {},
-    }))
-  }, [snapshot])
-
-  useEffect(() => {
-    const loadClass = async () => {
-      try {
-        if (classInfo?._id || classInfo?.id) return
-        const res = await liveSessionAPI.getClassDetails(classId)
-        setClassInfo(res?.class || res)
-      } catch (err) {
-        setError(err?.response?.data?.message || err.message || 'Failed to load class.')
-      }
-    }
-
-    loadClass()
-  }, [classId, classInfo])
-
-  useEffect(() => {
-    const bootstrap = async () => {
-      setPageLoading(true)
-      setSessionLoading(true)
-      setError('')
-
-      try {
-        const sessionRes = await liveSessionAPI.getOrCreateSession({ classId, subject })
-        const activeSession = sessionRes?.session || sessionRes
-        setSession(activeSession)
-
-        const [snapshotRes, materialsRes] = await Promise.all([
-          liveSessionAPI.getSnapshot(activeSession._id),
-          liveSessionAPI.getMaterials({ classId, subject }),
-        ])
-
-        setSnapshot(snapshotRes?.snapshot || snapshotRes || null)
-        setMaterials(materialsRes?.materials || materialsRes || [])
-      } catch (err) {
-        setError(err?.response?.data?.message || err.message || 'Failed to load live session.')
-      } finally {
-        setPageLoading(false)
-        setSessionLoading(false)
-      }
-    }
-
-    bootstrap()
-  }, [classId, subject])
-
-  useEffect(() => {
-    if (!session?._id) return
-
+  const cleanupSocket = useCallback(() => {
     if (socketRef.current) {
+      if (sessionRef.current) {
+        socketRef.current.emit('teacher:leaveSession', { sessionId: sessionRef.current })
+      }
       socketRef.current.disconnect()
+      socketRef.current = null
+      sessionRef.current = null
     }
+    setSocketStatus('disconnected')
+  }, [])
 
-    const socket = io(import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000', {
-      transports: ['websocket'],
-    })
+  const connectSocket = useCallback(
+    (sessionId) => {
+      cleanupSocket()
 
-    socketRef.current = socket
+      const socket = io(SOCKET_URL, { transports: ['websocket'] })
+      socketRef.current = socket
+      sessionRef.current = sessionId
 
-    socket.emit('join:session', { sessionId: session._id })
+      socket.on('connect', () => {
+        setSocketStatus('connected')
+        socket.emit('teacher:joinSession', { sessionId })
+      })
 
-    socket.on('session:snapshot', (payload) => {
-      setSnapshot(payload?.snapshot || payload)
-    })
+      socket.on('disconnect', () => {
+        setSocketStatus('disconnected')
+      })
 
+      socket.on('dashboard:init', ({ snapshot: snap }) => {
+        setSnapshot(snap || null)
+      })
+
+      socket.on('dashboard:update', (payload) => {
+        const snap = payload?.snapshot || payload
+        if (!snap) return
+
+        setSnapshot({
+          classScore: snap.classScore ?? 0,
+          classScoreHistory: snap.classScoreHistory || [],
+          studentScores: snap.studentScores || {},
+          countsByStudent: snap.countsByStudent || {},
+          breakdown: snap.breakdown || {},
+          trend: snap.trend || null,
+          recommendations: snap.recommendations || [],
+          lastEventAt: snap.lastEventAt || snap.lastEvent?.timestamp || null,
+        })
+      })
+
+      socket.on('session:ended', () => {
+        setSessionEnded(true)
+        setSession((prev) => (prev ? { ...prev, status: 'ended' } : prev))
+      })
+
+      socket.on('session:error', ({ message }) => {
+        setError(message || 'Erreur socket')
+      })
+    },
+    [cleanupSocket]
+  )
+
+  const loadForSubject = useCallback(
+    async (selectedSubject) => {
+      if (!teacherId || !normalizedClassId || !selectedSubject) {
+        return
+      }
+
+      setLoading(true)
+      setLoadingFiles(true)
+      setError('')
+      setSnapshot(null)
+      setSession(null)
+      setSessionEnded(false)
+      setMaterials([])
+
+      try {
+        const res = await liveAPI.startOrGet({
+          teacherId,
+          classId: normalizedClassId,
+          subject: selectedSubject,
+        })
+
+        const payload = res?.data || res
+
+        const sess = {
+          _id: payload?.sessionId,
+          teacherId: payload?.teacherId,
+          classId: payload?.classId,
+          subject: payload?.subject,
+          status: payload?.status,
+          startedAt: payload?.startedAt,
+          endedAt: payload?.endedAt || null,
+        }
+
+        if (!sess._id) {
+          throw new Error('sessionId introuvable dans la réponse backend.')
+        }
+
+        setSession(sess)
+        setSnapshot(payload?.snapshot || null)
+
+        connectSocket(sess._id)
+
+        const mRes = await materialsAPI.get(normalizedClassId, selectedSubject, teacherId)
+        setMaterials(mRes?.data || mRes?.materials || [])
+      } catch (err) {
+        setError(
+          err?.response?.data?.message ||
+            err?.message ||
+            'Impossible de charger la session.'
+        )
+      } finally {
+        setLoading(false)
+        setLoadingFiles(false)
+      }
+    },
+    [teacherId, normalizedClassId, connectSocket]
+  )
+
+  useEffect(() => {
     return () => {
-      socket.disconnect()
+      cleanupSocket()
     }
-  }, [session?._id])
+  }, [cleanupSocket])
 
-  const handleUploadClick = () => {
-    setUploadError('')
-    fileInputRef.current?.click()
+  const handleSubjectChange = (e) => {
+    setSubject(e.target.value)
+    setError('')
   }
 
-  const handleFileChange = async (e) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+  const handleStartSession = async () => {
+    if (!subject) {
+      setError('Choisissez une matière avant de démarrer la session.')
+      return
+    }
+    await loadForSubject(subject)
+  }
 
-    setUploading(true)
-    setUploadError('')
+  const handleEndSession = async () => {
+    if (!session?._id || sessionEnded) return
+
+    setEnding(true)
+    setError('')
 
     try {
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('classId', classId)
-      formData.append('subject', subject)
-      formData.append('title', file.name)
-      if (session?._id) formData.append('sessionId', session._id)
-
-      const res = await liveSessionAPI.uploadMaterial(formData)
-      const created = res?.material || res
-      setMaterials((prev) => [created, ...prev])
+      await liveAPI.endSession(session._id)
+      setSessionEnded(true)
+      setSession((prev) =>
+        prev ? { ...prev, status: 'ended', endedAt: new Date().toISOString() } : prev
+      )
+      cleanupSocket()
     } catch (err) {
-      setUploadError(err?.response?.data?.message || err.message || 'Upload failed.')
+      setError(err?.response?.data?.message || err.message || 'Erreur fin de session')
     } finally {
-      setUploading(false)
-      e.target.value = ''
+      setEnding(false)
+    }
+  }
+
+  const handleFileSaved = (newFile) => {
+    setMaterials((prev) => [newFile, ...prev])
+    setShowFileModal(false)
+  }
+
+  const handleDeleteFile = async (id) => {
+    if (!window.confirm('Supprimer ce fichier ?')) return
+
+    try {
+      await materialsAPI.remove(id)
+      setMaterials((prev) => prev.filter((m) => m._id !== id))
+    } catch (err) {
+      setError(err?.response?.data?.message || err.message || 'Erreur suppression fichier')
     }
   }
 
   return (
-    <div style={styles.page}>
-      <div style={styles.content}>
-        <button style={styles.backBtn} onClick={() => navigate('/teacher/classes')}>
-          ← Back to classes
-        </button>
+    <div style={s.root}>
+      <div style={{ ...s.blob, background: `${sc.color}20`, top: -80, left: -100 }} />
+      <div style={{ ...s.blob, background: 'rgba(255,179,71,0.15)', bottom: -60, right: -80 }} />
 
-        <div style={styles.topBar}>
-          <div>
-            <p style={styles.kicker}>Live class dashboard</p>
-            <h1 style={styles.title}>{classInfo?.name || 'Class live'}</h1>
-            <p style={styles.subTitle}>
-              Track student interactions, manage materials, and monitor the session live.
-            </p>
+      <div style={s.wrap}>
+        <div style={s.topBar}>
+          <button style={s.backBtn} onClick={() => navigate('/teacher/classes')}>
+            ← Mes classes
+          </button>
+
+          <div style={s.classInfo}>
+            <div style={{ ...s.classIcon, background: `${cls.color || sc.color}18` }}>
+              <span style={{ fontSize: 22 }}>{cls.emoji || '🏫'}</span>
+            </div>
+            <div>
+              <p style={s.className}>{cls.name}</p>
+              <p style={s.classMeta}>{cls.level || ''}</p>
+            </div>
           </div>
 
-          <div style={styles.topActions}>
-            <select
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-              style={styles.select}
-              disabled={sessionLoading}
-            >
-              {SUBJECT_OPTIONS.map((item) => (
-                <option key={item.value} value={item.value}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
-
-            <button
-              style={{ ...styles.uploadBtn, opacity: uploading ? 0.8 : 1 }}
-              onClick={handleUploadClick}
-              disabled={uploading || sessionLoading}
-            >
-              {uploading ? 'Uploading…' : 'Add file'}
-            </button>
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              style={{ display: 'none' }}
-              onChange={handleFileChange}
+          <div
+            style={{
+              ...s.socketPill,
+              background:
+                socketStatus === 'connected'
+                  ? 'rgba(78,205,196,0.10)'
+                  : 'rgba(200,196,220,0.12)',
+              border: `1.5px solid ${
+                socketStatus === 'connected'
+                  ? 'rgba(78,205,196,0.28)'
+                  : 'rgba(200,196,220,0.25)'
+              }`,
+            }}
+          >
+            <span
+              style={{
+                ...s.socketDot,
+                background: socketStatus === 'connected' ? '#4ECDC4' : '#C8C4DC',
+              }}
             />
+            <span
+              style={{
+                fontSize: '0.74rem',
+                fontWeight: 700,
+                color: socketStatus === 'connected' ? '#4ECDC4' : '#9E99B8',
+              }}
+            >
+              {socketStatus === 'connected' ? 'Live' : 'Not started'}
+            </span>
           </div>
+
+          <div style={{ ...s.selectWrap, borderColor: `${sc.color}40` }}>
+            <span>{subject ? sc.emoji : '📚'}</span>
+            <select value={subject} onChange={handleSubjectChange} style={{ ...s.select, color: subject ? sc.color : '#9E99B8' }}>
+              <option value="">Choose subject</option>
+              <option value="mathematics">Mathematics</option>
+              <option value="reading">Reading</option>
+              <option value="sciences">Sciences</option>
+            </select>
+          </div>
+
+          {!session && (
+            <button
+              style={{
+                ...s.startBtn,
+                background: subject
+                  ? `linear-gradient(135deg,${sc.color},${sc.color}BB)`
+                  : 'linear-gradient(135deg,#C8C4DC,#B8B2D1)',
+              }}
+              onClick={handleStartSession}
+            >
+              ▶ Start session
+            </button>
+          )}
+
+          <button
+            style={{
+              ...s.addFileBtn,
+              background: `linear-gradient(135deg,${sc.color},${sc.color}BB)`,
+              boxShadow: `0 4px 14px ${sc.color}35`,
+            }}
+            onClick={() => setShowFileModal(true)}
+            disabled={!session}
+          >
+            📎 Add file
+          </button>
+
+          {session && !sessionEnded && (
+            <button style={s.endBtn} onClick={handleEndSession} disabled={ending}>
+              {ending ? '⏳' : '⏹'} End session
+            </button>
+          )}
         </div>
 
-        {error && <div style={styles.error}>{error}</div>}
-        {uploadError && <div style={styles.error}>{uploadError}</div>}
-
-        {pageLoading ? (
-          <div style={styles.loadingCard}>Loading live dashboard…</div>
-        ) : (
-          <>
-            <div style={styles.grid}>
-              <div style={styles.card}>
-                <p style={styles.cardLabel}>Class score</p>
-                <h2 style={styles.scoreValue}>{snapshot?.classScore ?? 0}</h2>
-              </div>
-
-              <div style={styles.card}>
-                <p style={styles.cardLabel}>Trend</p>
-                <h2 style={styles.cardValue}>{snapshot?.trend || 'No trend yet'}</h2>
-              </div>
-
-              <div style={styles.card}>
-                <p style={styles.cardLabel}>Last event</p>
-                <h2 style={styles.cardValue}>
-                  {snapshot?.lastEventAt
-                    ? new Date(snapshot.lastEventAt).toLocaleString()
-                    : 'No event yet'}
-                </h2>
-              </div>
-            </div>
-
-            <div style={styles.mainLayout}>
-              <div style={styles.leftCol}>
-                <div style={styles.panel}>
-                  <div style={styles.panelHeader}>
-                    <h3 style={styles.panelTitle}>Student live scores</h3>
-                  </div>
-
-                  {studentRows.length === 0 ? (
-                    <div style={styles.emptyState}>No student activity yet.</div>
-                  ) : (
-                    <div style={styles.studentList}>
-                      {studentRows.map((row) => (
-                        <div key={row.studentId} style={styles.studentRow}>
-                          <div>
-                            <p style={styles.studentName}>Student {row.studentId.slice(-6)}</p>
-                            <p style={styles.studentMeta}>
-                              Understand: {row.counts.understand || 0} · Confused:{' '}
-                              {row.counts.confused || 0} · Overwhelmed:{' '}
-                              {row.counts.overwhelmed || 0} · Help: {row.counts.help || 0}
-                            </p>
-                          </div>
-                          <div style={styles.studentScore}>{row.score}</div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div style={styles.panel}>
-                  <div style={styles.panelHeader}>
-                    <h3 style={styles.panelTitle}>Recommendations</h3>
-                  </div>
-
-                  {snapshot?.recommendations?.length ? (
-                    <div style={styles.recoList}>
-                      {snapshot.recommendations.map((rec, index) => (
-                        <div key={index} style={styles.recoItem}>
-                          {typeof rec === 'string' ? rec : rec?.message || JSON.stringify(rec)}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div style={styles.emptyState}>No recommendations yet.</div>
-                  )}
-                </div>
-              </div>
-
-              <div style={styles.rightCol}>
-                <div style={styles.panel}>
-                  <div style={styles.panelHeader}>
-                    <h3 style={styles.panelTitle}>Files for {subject}</h3>
-                  </div>
-
-                  {materials.length === 0 ? (
-                    <div style={styles.emptyState}>No files added for this subject yet.</div>
-                  ) : (
-                    <div style={styles.materialList}>
-                      {materials.map((item) => (
-                        <a
-                          key={item._id}
-                          href={item.fileUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          style={styles.materialItem}
-                        >
-                          <div>
-                            <p style={styles.materialTitle}>{item.title}</p>
-                            <p style={styles.materialMeta}>
-                              Added {new Date(item.createdAt).toLocaleDateString()}
-                            </p>
-                          </div>
-                          <span style={styles.materialArrow}>↗</span>
-                        </a>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div style={styles.panel}>
-                  <div style={styles.panelHeader}>
-                    <h3 style={styles.panelTitle}>Session info</h3>
-                  </div>
-
-                  <div style={styles.infoBox}>
-                    <p>
-                      <strong>Session ID:</strong> {session?._id || '—'}
-                    </p>
-                    <p>
-                      <strong>Subject:</strong> {subject}
-                    </p>
-                    <p>
-                      <strong>Status:</strong> {session?.status || '—'}
-                    </p>
-                    <p>
-                      <strong>Started at:</strong>{' '}
-                      {session?.startedAt ? new Date(session.startedAt).toLocaleString() : '—'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </>
+        {error && (
+          <div style={s.errorBanner}>
+            ⚠️ {error}
+            <button style={s.errorClose} onClick={() => setError('')}>
+              ✕
+            </button>
+          </div>
         )}
+
+        {sessionEnded && (
+          <div style={s.endedBanner}>
+            <span style={{ fontSize: 20 }}>🏁</span>
+            <div>
+              <p style={s.endedTitle}>Session terminée</p>
+              <p style={s.endedSub}>Les résumés parents seront générés ce soir.</p>
+            </div>
+            <button
+              style={s.newSessBtn}
+              onClick={() => {
+                setSession(null)
+                setSnapshot(null)
+                setSessionEnded(false)
+              }}
+            >
+              Nouvelle session
+            </button>
+          </div>
+        )}
+
+        {loading && (
+          <div style={s.loadingCenter}>
+            <span style={s.spinner} />
+            <p style={s.loadingText}>Démarrage de la session…</p>
+          </div>
+        )}
+
+        {!loading && (
+          <div style={s.grid}>
+            <div style={s.leftCol}>
+              <ScoreCard snapshot={snapshot} sc={sc} />
+              <StudentGrid snapshot={snapshot} />
+              <ButtonsCard snapshot={snapshot} />
+            </div>
+
+            <div style={s.rightCol}>
+              <FilesCard
+                materials={materials}
+                loading={loadingFiles}
+                sc={sc}
+                onAdd={() => setShowFileModal(true)}
+                onDelete={handleDeleteFile}
+              />
+              <RecsCard snapshot={snapshot} sc={sc} />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {showFileModal && session && (
+        <AddFileModal
+          classId={normalizedClassId}
+          teacherId={teacherId}
+          subject={subject}
+          sessionId={session._id}
+          onSave={handleFileSaved}
+          onClose={() => setShowFileModal(false)}
+          sc={sc}
+        />
+      )}
+    </div>
+  )
+}
+
+function ScoreCard({ snapshot, sc }) {
+  const tc = TREND_CFG[snapshot?.trend]
+  return (
+    <div style={s.card}>
+      <div style={s.cardHead}>
+        <span style={s.cardTitle}>📊 Class Score</span>
+        {tc && (
+          <span style={{ fontSize: '0.74rem', fontWeight: 800, padding: '3px 10px', borderRadius: 9999, color: tc.color, background: `${tc.color}14` }}>
+            {tc.label}
+          </span>
+        )}
+      </div>
+      {!snapshot ? (
+        <p style={s.emptyText}>Waiting for first interaction…</p>
+      ) : (
+        <>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 14 }}>
+            <span style={{ fontFamily: "'Baloo 2',cursive", fontSize: '3.2rem', fontWeight: 800, color: sc.color, lineHeight: 1 }}>
+              {snapshot.classScore ?? 0}
+            </span>
+            <span style={{ fontFamily: "'Baloo 2',cursive", fontSize: '1.1rem', color: '#C8C4DC', fontWeight: 600 }}>/100</span>
+          </div>
+
+          {snapshot.classScoreHistory?.length > 1 && (
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 5, height: 56 }}>
+              {snapshot.classScoreHistory.slice(-8).map((v, i, arr) => (
+                <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+                  <div style={{ width: '100%', height: `${(v / 100) * 48}px`, minHeight: 3, background: i === arr.length - 1 ? sc.color : `${sc.color}50`, borderRadius: '4px 4px 0 0', transition: 'height 400ms ease' }} />
+                  <span style={{ fontSize: '0.58rem', color: '#B0AACB', fontWeight: 600 }}>{v}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+function StudentGrid({ snapshot }) {
+  if (!snapshot?.studentScores) return null
+  const entries = Object.entries(snapshot.studentScores)
+  if (!entries.length) return null
+
+  const bd = snapshot.breakdown || {}
+  const alertIds = bd.alert?.studentIds || []
+  const warningIds = bd.warning?.studentIds || []
+
+  const colorFor = (id) =>
+    alertIds.includes(id) ? '#FF6B6B' : warningIds.includes(id) ? '#FFB347' : '#4ECDC4'
+
+  return (
+    <div style={s.card}>
+      <div style={s.cardHead}>
+        <span style={s.cardTitle}>👥 Student Scores</span>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(68px,1fr))', gap: 8 }}>
+        {entries.map(([id, score]) => {
+          const c = colorFor(id)
+          return (
+            <div key={id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '9px 6px', borderRadius: 12, border: `1.5px solid ${c}25`, background: `${c}06`, gap: 3 }}>
+              <span style={{ fontFamily: "'Nunito',sans-serif", fontSize: '0.62rem', fontWeight: 700, color: '#9E99B8' }}>
+                #{id.slice(-4).toUpperCase()}
+              </span>
+              <span style={{ fontFamily: "'Baloo 2',cursive", fontSize: '1.15rem', fontWeight: 800, color: c, lineHeight: 1 }}>
+                {score ?? '–'}
+              </span>
+            </div>
+          )
+        })}
       </div>
     </div>
   )
 }
 
-const styles = {
-  page: {
+function ButtonsCard({ snapshot }) {
+  if (!snapshot?.countsByStudent) return null
+  const totals = { understand: 0, confused: 0, overwhelmed: 0, help: 0 }
+
+  Object.values(snapshot.countsByStudent).forEach((c) =>
+    Object.entries(c).forEach(([k, v]) => {
+      if (k in totals) totals[k] += v
+    })
+  )
+
+  const grand = Object.values(totals).reduce((a, b) => a + b, 0)
+  if (!grand) return null
+
+  const rows = [
+    { key: 'understand', label: '✅ Understand', color: '#4ECDC4' },
+    { key: 'confused', label: '❓ Confused', color: '#FFB347' },
+    { key: 'overwhelmed', label: '😰 Overwhelmed', color: '#9B8EFF' },
+    { key: 'help', label: '🆘 Help', color: '#FF6B6B' },
+  ]
+
+  return (
+    <div style={s.card}>
+      <p style={{ ...s.cardTitle, marginBottom: 14 }}>🎮 Button Presses · {grand}</p>
+      {rows.map((r) => {
+        const n = totals[r.key] || 0
+        const pct = grand ? Math.round((n / grand) * 100) : 0
+        return (
+          <div key={r.key} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#706C8A', width: 100, flexShrink: 0 }}>
+              {r.label}
+            </span>
+            <div style={{ flex: 1, height: 6, background: '#F0EEF8', borderRadius: 9999, overflow: 'hidden' }}>
+              <div style={{ width: `${pct}%`, height: '100%', background: r.color, borderRadius: 9999, transition: 'width 500ms ease' }} />
+            </div>
+            <span style={{ fontFamily: "'Baloo 2',cursive", fontSize: '0.82rem', fontWeight: 800, color: r.color, minWidth: 22, textAlign: 'right' }}>
+              {n}
+            </span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function FilesCard({ materials, loading, sc, onAdd, onDelete }) {
+  const icon = (url = '') =>
+    url.endsWith('.pdf')
+      ? '📄'
+      : url.match(/\.(png|jpg|jpeg)$/)
+        ? '🖼️'
+        : url.includes('drive')
+          ? '📂'
+          : '📎'
+
+  return (
+    <div style={s.card}>
+      <div style={s.cardHead}>
+        <span style={s.cardTitle}>
+          {sc.emoji} Files · {sc.label}
+        </span>
+        <button style={{ ...s.miniBtn, color: sc.color, background: `${sc.color}12`, border: `1.5px solid ${sc.color}25` }} onClick={onAdd}>
+          + Add
+        </button>
+      </div>
+
+      {loading ? (
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '12px 0' }}>
+          <span style={s.spinner} />
+          <span style={s.loadingText}>Loading files…</span>
+        </div>
+      ) : materials.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '20px 0' }}>
+          <p style={s.emptyText}>No files yet for {sc.label}.</p>
+          <button style={{ ...s.miniBtn, color: sc.color, background: `${sc.color}10`, border: `1.5px solid ${sc.color}20`, marginTop: 8 }} onClick={onAdd}>
+            + Add first file
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {materials.map((m) => (
+            <div key={m._id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 12, background: 'rgba(248,247,255,0.6)', border: '1px solid rgba(200,196,220,0.15)' }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: `${sc.color}12`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <span style={{ fontSize: 16 }}>{icon(m.fileUrl)}</span>
+              </div>
+              <div style={{ flex: 1, overflow: 'hidden' }}>
+                <p style={{ fontFamily: "'Nunito',sans-serif", fontSize: '0.82rem', fontWeight: 700, color: '#1A1830', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {m.title}
+                </p>
+                <a href={m.fileUrl} target="_blank" rel="noreferrer" style={{ fontFamily: "'Nunito',sans-serif", fontSize: '0.70rem', color: sc.color, fontWeight: 600, textDecoration: 'none' }}>
+                  Ouvrir ↗
+                </a>
+              </div>
+              <button style={{ background: 'none', border: 'none', cursor: 'pointer', opacity: 0.45, fontSize: 14 }} onClick={() => onDelete(m._id)}>
+                🗑️
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function RecsCard({ snapshot, sc }) {
+  if (!snapshot?.recommendations?.length) return null
+  const typeColors = {
+    urgent: '#FF6B6B',
+    pedagogique: '#9B8EFF',
+    encouragement: '#4ECDC4',
+    approche: '#FFB347',
+  }
+
+  return (
+    <div style={s.card}>
+      <p style={{ ...s.cardTitle, marginBottom: 14 }}>💡 Recommendations</p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {snapshot.recommendations.map((rec, i) => {
+          const msg = typeof rec === 'string' ? rec : rec.message
+          const type = typeof rec === 'object' ? rec.type : null
+          const color = typeColors[type] || sc.color
+          return (
+            <div key={i} style={{ padding: '10px 13px', borderRadius: 10, borderLeft: `3px solid ${color}`, background: `${color}07` }}>
+              <p style={{ fontFamily: "'Nunito',sans-serif", fontSize: '0.82rem', fontWeight: 500, color: '#4A4666', lineHeight: 1.55, marginBottom: type ? 4 : 0 }}>
+                {msg}
+              </p>
+              {type && (
+                <span style={{ fontSize: '0.66rem', fontWeight: 800, color, background: `${color}12`, padding: '2px 8px', borderRadius: 9999, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  {type}
+                </span>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+const s = {
+  root: {
     minHeight: '100vh',
-    background: 'linear-gradient(180deg,#FFF9F4 0%,#FFFDFB 45%,#F8F7FF 100%)',
-    padding: '32px 24px',
-    fontFamily: "'Nunito', sans-serif",
+    background: 'linear-gradient(160deg,#FFF9F4 0%,#FFFDFB 50%,#F8F7FF 100%)',
+    position: 'relative',
+    overflow: 'hidden',
+    fontFamily: "'Nunito',sans-serif",
   },
-  content: {
-    maxWidth: 1400,
+  blob: {
+    position: 'absolute',
+    borderRadius: '50%',
+    filter: 'blur(80px)',
+    opacity: 0.5,
+    zIndex: 0,
+    width: 280,
+    height: 280,
+  },
+  wrap: {
+    position: 'relative',
+    zIndex: 1,
+    maxWidth: 1380,
     margin: '0 auto',
-  },
-  backBtn: {
-    border: 'none',
-    background: 'transparent',
-    color: '#7d75a7',
-    fontWeight: 800,
-    cursor: 'pointer',
-    marginBottom: 18,
-    fontSize: 14,
+    padding: '24px 24px 48px',
   },
   topBar: {
     display: 'flex',
-    justifyContent: 'space-between',
-    gap: 20,
-    alignItems: 'flex-start',
-    flexWrap: 'wrap',
-    marginBottom: 24,
-  },
-  kicker: {
-    margin: 0,
-    color: '#9B8EFF',
-    fontSize: 12,
-    fontWeight: 900,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  title: {
-    margin: '6px 0 8px',
-    fontSize: 40,
-    fontWeight: 900,
-    color: '#1A1830',
-    fontFamily: "'Baloo 2', cursive",
-  },
-  subTitle: {
-    margin: 0,
-    color: '#8d87a8',
-    fontSize: 15,
-    maxWidth: 700,
-  },
-  topActions: {
-    display: 'flex',
-    gap: 12,
     alignItems: 'center',
+    gap: 12,
     flexWrap: 'wrap',
+    marginBottom: 22,
+    background: 'rgba(255,255,255,0.90)',
+    backdropFilter: 'blur(16px)',
+    borderRadius: 20,
+    padding: '13px 20px',
+    border: '1.5px solid rgba(255,255,255,0.92)',
+    boxShadow: '0 4px 20px rgba(100,90,150,0.07)',
+  },
+  backBtn: {
+    background: 'none',
+    border: 'none',
+    fontFamily: "'Nunito',sans-serif",
+    fontSize: '0.82rem',
+    fontWeight: 700,
+    color: '#9E99B8',
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+  },
+  classInfo: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  classIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  className: {
+    fontFamily: "'Baloo 2',cursive",
+    fontSize: '1.10rem',
+    fontWeight: 800,
+    color: '#1A1830',
+    letterSpacing: '-0.02em',
+    margin: 0,
+  },
+  classMeta: {
+    fontFamily: "'Nunito',sans-serif",
+    fontSize: '0.72rem',
+    color: '#9E99B8',
+    fontWeight: 500,
+    margin: 0,
+  },
+  socketPill: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '5px 13px',
+    borderRadius: 9999,
+    whiteSpace: 'nowrap',
+  },
+  socketDot: {
+    width: 7,
+    height: 7,
+    borderRadius: '50%',
+    flexShrink: 0,
+    transition: 'all 300ms ease',
+  },
+  selectWrap: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    background: 'rgba(248,247,255,0.9)',
+    border: '1.5px solid',
+    borderRadius: 12,
+    padding: '0 14px',
+    height: 42,
   },
   select: {
-    height: 46,
-    borderRadius: 14,
-    border: '1.5px solid rgba(155,142,255,.25)',
-    padding: '0 14px',
-    fontWeight: 700,
-    background: '#fff',
-  },
-  uploadBtn: {
-    height: 46,
+    background: 'none',
     border: 'none',
-    borderRadius: 9999,
-    padding: '0 18px',
-    background: 'linear-gradient(135deg,#9B8EFF 0%,#74C0FC 100%)',
-    color: '#fff',
-    fontWeight: 800,
+    fontFamily: "'Nunito',sans-serif",
+    fontSize: '0.88rem',
+    fontWeight: 700,
     cursor: 'pointer',
+    outline: 'none',
   },
-  error: {
-    marginBottom: 14,
-    padding: '12px 14px',
-    background: 'rgba(255,107,107,.08)',
-    color: '#e25555',
+  startBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '10px 20px',
+    borderRadius: 9999,
+    border: 'none',
+    fontFamily: "'Nunito',sans-serif",
+    fontSize: '0.84rem',
+    fontWeight: 800,
+    color: '#fff',
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+  },
+  addFileBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '10px 20px',
+    borderRadius: 9999,
+    border: 'none',
+    fontFamily: "'Nunito',sans-serif",
+    fontSize: '0.84rem',
+    fontWeight: 800,
+    color: '#fff',
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+    transition: 'all 250ms ease',
+  },
+  endBtn: {
+    padding: '9px 18px',
+    borderRadius: 9999,
+    border: '1.5px solid rgba(255,107,107,0.30)',
+    background: 'rgba(255,107,107,0.08)',
+    fontFamily: "'Nunito',sans-serif",
+    fontSize: '0.80rem',
+    fontWeight: 700,
+    color: '#FF6B6B',
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+  },
+  errorBanner: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    padding: '12px 18px',
+    background: 'rgba(255,107,107,0.08)',
+    border: '1.5px solid rgba(255,107,107,0.22)',
     borderRadius: 14,
-    border: '1px solid rgba(255,107,107,.16)',
+    marginBottom: 16,
+    fontFamily: "'Nunito',sans-serif",
+    fontSize: '0.84rem',
     fontWeight: 700,
+    color: '#FF6B6B',
   },
-  loadingCard: {
-    background: '#fff',
-    borderRadius: 24,
-    padding: 28,
-    boxShadow: '0 8px 28px rgba(100,90,150,.08)',
-    color: '#6b6488',
-    fontWeight: 700,
-  },
-  grid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))',
-    gap: 16,
-    marginBottom: 18,
-  },
-  card: {
-    background: '#fff',
-    borderRadius: 24,
-    padding: 22,
-    boxShadow: '0 8px 28px rgba(100,90,150,.08)',
-  },
-  cardLabel: {
-    margin: 0,
-    color: '#9089ab',
+  errorClose: {
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    color: '#FF6B6B',
     fontWeight: 800,
     fontSize: 13,
   },
-  scoreValue: {
-    margin: '10px 0 0',
-    fontSize: 42,
-    color: '#1A1830',
-    fontFamily: "'Baloo 2', cursive",
+  endedBanner: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 14,
+    padding: '13px 18px',
+    background: 'rgba(78,205,196,0.08)',
+    border: '1.5px solid rgba(78,205,196,0.22)',
+    borderRadius: 16,
+    marginBottom: 18,
+    flexWrap: 'wrap',
   },
-  cardValue: {
-    margin: '10px 0 0',
-    fontSize: 20,
-    color: '#1A1830',
-    fontWeight: 900,
+  endedTitle: {
+    fontFamily: "'Baloo 2',cursive",
+    fontSize: '0.94rem',
+    fontWeight: 800,
+    color: '#4ECDC4',
+    margin: 0,
   },
-  mainLayout: {
+  endedSub: {
+    fontFamily: "'Nunito',sans-serif",
+    fontSize: '0.76rem',
+    color: '#9E99B8',
+    margin: 0,
+  },
+  newSessBtn: {
+    marginLeft: 'auto',
+    padding: '9px 20px',
+    borderRadius: 9999,
+    border: 'none',
+    background: 'linear-gradient(135deg,#4ECDC4,#44B8B0)',
+    color: '#fff',
+    fontFamily: "'Nunito',sans-serif",
+    fontSize: '0.82rem',
+    fontWeight: 800,
+    cursor: 'pointer',
+  },
+  loadingCenter: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 14,
+    padding: '60px 0',
+  },
+  loadingText: {
+    fontFamily: "'Nunito',sans-serif",
+    fontSize: '0.88rem',
+    color: '#9E99B8',
+    fontWeight: 500,
+  },
+  grid: {
     display: 'grid',
-    gridTemplateColumns: '1.5fr 1fr',
-    gap: 18,
+    gridTemplateColumns: '1fr 340px',
+    gap: 20,
+    alignItems: 'start',
   },
   leftCol: {
     display: 'flex',
@@ -454,113 +848,55 @@ const styles = {
     flexDirection: 'column',
     gap: 18,
   },
-  panel: {
-    background: '#fff',
-    borderRadius: 24,
-    padding: 22,
-    boxShadow: '0 8px 28px rgba(100,90,150,.08)',
+  card: {
+    background: 'rgba(255,255,255,0.90)',
+    backdropFilter: 'blur(16px)',
+    borderRadius: 20,
+    padding: '18px 20px',
+    border: '1.5px solid rgba(255,255,255,0.92)',
+    boxShadow: '0 4px 24px rgba(100,90,150,0.08)',
+    animation: 'fadeInUp 0.4s ease both',
   },
-  panelHeader: {
+  cardHead: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 14,
+    gap: 8,
+    flexWrap: 'wrap',
   },
-  panelTitle: {
-    margin: 0,
+  cardTitle: {
+    fontFamily: "'Baloo 2',cursive",
+    fontSize: '0.95rem',
+    fontWeight: 800,
     color: '#1A1830',
-    fontSize: 22,
-    fontFamily: "'Baloo 2', cursive",
-  },
-  emptyState: {
-    padding: 16,
-    borderRadius: 16,
-    background: '#faf8ff',
-    color: '#8d87a8',
-    fontWeight: 700,
-  },
-  studentList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 12,
-  },
-  studentRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    gap: 12,
-    alignItems: 'center',
-    padding: 14,
-    borderRadius: 18,
-    background: '#faf8ff',
-  },
-  studentName: {
+    letterSpacing: '-0.01em',
     margin: 0,
-    fontWeight: 900,
-    color: '#1A1830',
   },
-  studentMeta: {
-    margin: '4px 0 0',
-    color: '#8d87a8',
-    fontSize: 13,
-    lineHeight: 1.5,
+  emptyText: {
+    fontFamily: "'Nunito',sans-serif",
+    fontSize: '0.82rem',
+    color: '#B0AACB',
+    fontWeight: 500,
+    textAlign: 'center',
   },
-  studentScore: {
-    minWidth: 56,
-    height: 56,
+  miniBtn: {
+    padding: '5px 14px',
+    borderRadius: 9999,
+    fontSize: '0.76rem',
+    fontWeight: 800,
+    fontFamily: "'Nunito',sans-serif",
+    cursor: 'pointer',
+    transition: 'all 200ms ease',
+  },
+  spinner: {
+    display: 'block',
+    width: 18,
+    height: 18,
+    border: '2px solid rgba(155,142,255,0.2)',
+    borderTop: '2px solid #9B8EFF',
     borderRadius: '50%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    background: 'rgba(155,142,255,.12)',
-    color: '#6a59c9',
-    fontWeight: 900,
-    fontSize: 18,
-  },
-  recoList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 10,
-  },
-  recoItem: {
-    padding: 14,
-    borderRadius: 16,
-    background: '#fff8ef',
-    color: '#6f6045',
-    fontWeight: 700,
-  },
-  materialList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 10,
-  },
-  materialItem: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    gap: 12,
-    alignItems: 'center',
-    textDecoration: 'none',
-    color: 'inherit',
-    background: '#faf8ff',
-    borderRadius: 16,
-    padding: 14,
-  },
-  materialTitle: {
-    margin: 0,
-    color: '#1A1830',
-    fontWeight: 900,
-  },
-  materialMeta: {
-    margin: '4px 0 0',
-    color: '#8d87a8',
-    fontSize: 13,
-  },
-  materialArrow: {
-    fontSize: 18,
-    color: '#8f86ff',
-    fontWeight: 900,
-  },
-  infoBox: {
-    color: '#5e5877',
-    lineHeight: 1.8,
-    fontWeight: 700,
+    animation: 'spin 0.65s linear infinite',
+    flexShrink: 0,
   },
 }
-
-export default TeacherClassLivePage
