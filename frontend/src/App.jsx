@@ -10,12 +10,11 @@ import ParentRegisterPage from './pages/parent/ParentRegisterPage'
 import StudentLoginPage from './pages/student/StudentLoginPage'
 import TeacherClassesPage from './pages/teacher/TeacherClassesPage'
 import TeacherClassLivePage from './pages/teacher/TeacherClassLivePage'
-import BuddyPage from './pages/student/BuddyPage' // adapte le chemin si besoin
+import BuddyPage from './pages/student/BuddyPage' 
 import ClassroomsPage from './pages/student/Classroomspage'
 import TestPage from './pages/TestPage'
 import Classroompage from './pages/student/Classroompage'
 import Coursepage from './pages/student/Coursepage'
-import BuddyPageWrapper from './pages/student/BuddyPageWrapper'
 import ChildrenPage from './pages/parent/ChildrenPage'
 
 const App = () => {
@@ -77,17 +76,9 @@ const App = () => {
       />
 
      
-      <Route
-        path="/parent/login"
-        element={<Placeholder title="Parent Login" color="#FF6B6B" />}
-      />
-      <Route
-        path="/parent/register"
-        element={<Placeholder title="Parent Register" color="#FF6B6B" />}
-      />
-     
-      
-      <Route path="/parent/dashboard" element={<ChildrenPage/>} />
+      <Route path="/parent/login" element={<ParentLoginPage />} />
+      <Route path="/parent/register" element={<ParentRegisterPage />} />
+      <Route path="/parent/dashboard" element={<ChildrenPage />} />
      
       {/* ── Student ──────────────────────────────────────────────── */}
       <Route path="/student/login" element={<StudentLoginPage />} />
@@ -98,7 +89,7 @@ const App = () => {
       <Route path="/student/classroom/:classroomId" element={<Classroompage />} />
       <Route path="/student/course/:courseId" element={<Coursepage />} />
 
-      <Route path="/student/buddy" element={<BuddyPageWrapper />} />
+      <Route path="/student/buddy" element={<BuddyPage/>} />
       <Route path="/student/classrooms" element={<ClassroomsPage />} />
 
       <Route path="/test" element={<TestPage />} />

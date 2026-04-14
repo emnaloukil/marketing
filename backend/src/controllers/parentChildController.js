@@ -75,7 +75,7 @@ async function addChild(req, res) {
       parentId,
       firstName,
       lastName,
-      classId,
+      classId,  // Now optional, will be ignored
       supportProfile = 'none',
       dateOfBirth,
     } = req.body
@@ -90,9 +90,7 @@ async function addChild(req, res) {
     if (!lastName) {
       return res.status(400).json({ success: false, message: 'lastName est requis' })
     }
-    if (!classId) {
-      return res.status(400).json({ success: false, message: 'classId est requis' })
-    }
+    // classId is now optional
     if (!dateOfBirth) {
       return res.status(400).json({ success: false, message: 'dateOfBirth est requise' })
     }
@@ -144,7 +142,6 @@ async function addChild(req, res) {
       firstName:      firstName.trim(),
       lastName:       lastName.trim(),
       parent:         parentId,
-      classId:        classId.trim(),
       supportProfile,
       dateOfBirth:    parsedDate,
       studentCode,
