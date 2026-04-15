@@ -57,10 +57,15 @@ async function joinClassByCode(req, res) {
       req.body.classCode
     )
 
+    const classroomData = await studentService.getStudentClassroom(req.params.id)
+
     res.json({
       success: true,
       message: 'Classe rejointe avec succès',
-      data: student,
+      data: {
+        student,
+        classroomData,
+      },
     })
   } catch (err) {
     const status =

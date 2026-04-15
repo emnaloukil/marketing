@@ -142,6 +142,7 @@ async function addChild(req, res) {
       firstName:      firstName.trim(),
       lastName:       lastName.trim(),
       parent:         parentId,
+      classIds:       classId ? [classId] : [],
       supportProfile,
       dateOfBirth:    parsedDate,
       studentCode,

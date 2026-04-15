@@ -101,8 +101,10 @@ async function joinClassByCode(studentId, classCode) {
     throw new Error('Classe introuvable avec ce code')
   }
 
-  student.classId = String(cls._id)
-  await student.save()
+  if (!student.classIds.includes(String(cls._id))) {
+    student.classIds.push(String(cls._id))
+    await student.save()
+  }
 
   return student.toObject()
 }
@@ -113,30 +115,28 @@ async function getStudentClassroom(studentId) {
   const student = await Student.findById(studentId).lean()
   if (!student) throw new Error(`Élève introuvable : ${studentId}`)
 
-  if (!student.classId) {
+  if (!student.classIds || student.classIds.length === 0) {
     return {
       joined: false,
-      classInfo: null,
-      materials: [],
+      classrooms: [],
     }
   }
 
-  const cls = await Class.findById(student.classId).lean()
-  if (!cls) {
-    throw new Error('Classe introuvable')
-  }
+  const classrooms = []
 
-  const teacher = await Teacher.findById(cls.teacherId).lean()
+  for (const classId of student.classIds) {
+    const cls = await Class.findById(classId).lean()
+    if (!cls) continue
 
-  const materials = await Material.find({
-    classId: String(cls._id),
-  })
-    .sort({ createdAt: -1 })
-    .lean()
+    const teacher = await Teacher.findById(cls.teacherId).lean()
 
-  return {
-    joined: true,
-    classInfo: {
+    const materials = await Material.find({
+      classId: String(cls._id),
+    })
+      .sort({ createdAt: -1 })
+      .lean()
+
+    classrooms.push({
       _id: cls._id,
       name: cls.name,
       classCode: cls.classCode,
@@ -145,8 +145,13 @@ async function getStudentClassroom(studentId) {
         ? `${teacher.firstName || ''} ${teacher.lastName || ''}`.trim()
         : '',
       studentCount: cls.studentCount || 0,
-    },
-    materials,
+      materials,
+    })
+  }
+
+  return {
+    joined: true,
+    classrooms,
   }
 }
 

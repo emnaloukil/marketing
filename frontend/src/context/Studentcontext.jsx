@@ -49,7 +49,7 @@ function getStoredStudent() {
       level: parsed?.level || 1,
       streak: parsed?.streak || 0,
       studentCode: parsed?.studentCode || "",
-      classId: parsed?.classId || "",
+      classIds: parsed?.classIds || [],
       firstName: parsed?.firstName || "",
       lastName: parsed?.lastName || "",
     };
@@ -58,21 +58,20 @@ function getStoredStudent() {
   }
 }
 
-function mapBackendClassroomToCard(data) {
-  if (!data) return null;
+function mapBackendClassroomToCard(classroom) {
+  if (!classroom) return null;
 
-  const classInfo = data?.classInfo || data;
-  const materials = data?.materials || [];
+  const materials = classroom.materials || [];
 
   return {
-    id: String(classInfo?._id || classInfo?.id || ""),
-    name: classInfo?.name || "Classroom",
-    classCode: classInfo?.classCode || "",
-    teacher: classInfo?.teacherName || "Teacher",
+    id: String(classroom._id || ""),
+    name: classroom.name || "Classroom",
+    classCode: classroom.classCode || "",
+    teacher: classroom.teacherName || "Teacher",
     teacherAvatar: "👩‍🏫",
     color: "#7C3AED",
     emoji: "🏫",
-    studentsCount: classInfo?.studentCount || 0,
+    studentsCount: classroom.studentCount || 0,
     coursesCount: materials.length,
     lastActivity: materials.length ? "Updated recently" : "Just joined",
     courses: materials.map((m) => ({
@@ -105,7 +104,7 @@ export function StudentProvider({ children }) {
         level: 1,
         streak: 0,
         studentCode: "",
-        classId: "",
+        classIds: [],
         firstName: "",
         lastName: "",
       }
@@ -118,6 +117,10 @@ export function StudentProvider({ children }) {
   const [chatbotOpen, setChatbotOpen] = useState(false);
   const [loadingClassrooms, setLoadingClassrooms] = useState(false);
 
+  const [classroomsVersion, setClassroomsVersion] = useState(0);
+
+  const reloadClassrooms = () => setClassroomsVersion(prev => prev + 1);
+
   const [theme, setTheme] = useState(
     () => getTheme(student?.condition || "normal") ?? DEFAULT_THEME
   );
@@ -127,6 +130,17 @@ export function StudentProvider({ children }) {
     if (stored?._id) {
       setStudent(stored);
     }
+
+    const handleStudentUpdate = () => {
+      const stored = getStoredStudent();
+      if (stored) {
+        setStudent(stored);
+      }
+    };
+
+    window.addEventListener('studentUpdated', handleStudentUpdate);
+
+    return () => window.removeEventListener('studentUpdated', handleStudentUpdate);
   }, []);
 
   useEffect(() => {
@@ -149,13 +163,13 @@ export function StudentProvider({ children }) {
         const res = await studentsAPI.getClassroom(studentId);
         const data = res?.data;
 
-        if (!data || !data.joined || !data.classInfo) {
+        if (!data || !data.joined || !data.classrooms) {
           setClassrooms([]);
           return;
         }
 
-        const classroomCard = mapBackendClassroomToCard(data);
-        setClassrooms(classroomCard ? [classroomCard] : []);
+        const classroomCards = data.classrooms.map(mapBackendClassroomToCard).filter(Boolean);
+        setClassrooms(classroomCards);
       } catch (err) {
         setClassrooms([]);
         console.warn("loadStudentClassroom error:", err.message);
@@ -165,7 +179,7 @@ export function StudentProvider({ children }) {
     };
 
     loadStudentClassroom();
-  }, [student?._id, student?.id]);
+  }, [student, classroomsVersion]);
 
   const applyThemeToCss = (t) => {
     if (!t) return;
@@ -253,6 +267,7 @@ export function StudentProvider({ children }) {
       goBack,
       updateCondition,
       refreshStudentClassroom,
+      reloadClassrooms,
     }),
     [
       student,

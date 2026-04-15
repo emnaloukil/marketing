@@ -24,7 +24,7 @@ function getFreshStudentId(studentFromContext) {
 
 export default function ClassroomsPage() {
   const navigate = useNavigate()
-  const { student, classrooms = [], enterClassroom, theme } = useStudent()
+  const { student, classrooms = [], enterClassroom, theme, reloadClassrooms } = useStudent()
 
   const [showJoinModal, setShowJoinModal] = useState(false)
   const [classroomCode, setClassroomCode] = useState("")
@@ -73,12 +73,12 @@ export default function ClassroomsPage() {
         const res = await studentsAPI.getClassroom(studentId)
         const data = res?.data
 
-        if (!data || !data.joined || !data.classInfo) {
+        if (!data || !data.joined || !Array.isArray(data.classrooms) || data.classrooms.length === 0) {
           setJoinedClassroom(null)
           return
         }
 
-        setJoinedClassroom(mapBackendClassroomToCard(data))
+        setJoinedClassroom(mapBackendClassroomToCard(data.classrooms[0]))
       } catch (err) {
         console.warn("[ClassroomsPage] loadCurrentClassroom error =", err.message)
         setJoinedClassroom(null)
@@ -112,22 +112,32 @@ export default function ClassroomsPage() {
       await classesAPI.getByCode(code)
 
       const joinRes = await studentsAPI.joinClassroom(studentId, code)
-      const classroomData = joinRes?.data?.classroom
+      const classroomData = joinRes?.data?.classroomData
 
-      if (classroomData) {
-        const mappedClassroom = mapBackendClassroomToCard(classroomData)
+      if (classroomData?.classrooms?.length) {
+        const matched = classroomData.classrooms.find(
+          (cls) => cls.classCode === code
+        )
+        const mappedClassroom = mapBackendClassroomToCard(matched || classroomData.classrooms[0])
         setJoinedClassroom(mappedClassroom)
         navigate(`/student/classroom/${mappedClassroom.id}`)
       } else {
         const currentRes = await studentsAPI.getClassroom(studentId)
         const currentData = currentRes?.data
 
-        if (currentData?.joined && currentData?.classInfo) {
-          const mappedClassroom = mapBackendClassroomToCard(currentData)
+        if (currentData?.joined && Array.isArray(currentData.classrooms) && currentData.classrooms.length) {
+          const matched = currentData.classrooms.find(
+            (cls) => cls.classCode === code
+          )
+          const mappedClassroom = mapBackendClassroomToCard(
+            matched || currentData.classrooms[0]
+          )
           setJoinedClassroom(mappedClassroom)
           navigate(`/student/classroom/${mappedClassroom.id}`)
         }
       }
+
+      reloadClassrooms()
 
       setClassroomCode("")
       setShowJoinModal(false)

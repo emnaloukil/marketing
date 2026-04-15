@@ -21,11 +21,9 @@ const studentSchema = new mongoose.Schema(
       ref:      'Parent',
       required: [true, 'parent est requis'],
     },
-    classId: {
-      type:     String,
-      required: false,
-      trim:     true,
-      default:  '',
+    classIds: {
+      type:     [String],
+      default:  [],
     },
 
     // ── Profil ────────────────────────────────────────────────────────────────
@@ -67,7 +65,7 @@ const studentSchema = new mongoose.Schema(
 
 // ── Index ─────────────────────────────────────────────────────────────────────
 studentSchema.index({ parent:  1 })
-studentSchema.index({ classId: 1 })
+studentSchema.index({ classIds: 1 })
 
 // ── Hook pre('save') — hash du PIN ────────────────────────────────────────────
 // Utilise async sans next — Mongoose supporte les promesses nativement

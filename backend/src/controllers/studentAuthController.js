@@ -57,7 +57,7 @@ function buildStudentResponse(student) {
     firstName:      student.firstName,
     lastName:       student.lastName,
     studentCode:    student.studentCode,
-    classId:        student.classId,
+    classIds:       student.classIds,
     supportProfile: student.supportProfile,
     dateOfBirth:    student.dateOfBirth,
     parent:         student.parent,
@@ -168,7 +168,7 @@ async function login(req, res) {
     // ── Chercher l'élève par studentCode ──────────────────────────────────────
     // .select('+pin') nécessaire car pin a select: false dans le schéma
     const student = await Student.findOne({
-      studentCode: studentCode.trim().toUpperCase(),
+      studentCode: { $regex: new RegExp(`^${studentCode.trim()}$`, 'i') },
     }).select('+pin')
 
     // Message volontairement vague — ne pas révéler si le code existe
@@ -221,9 +221,9 @@ async function profile(req, res) {
       return res.status(404).json({ success: false, message: 'Élève introuvable' })
     }
 
-    // Chercher la session active de la classe de l'élève
+    // Chercher la session active de l'une des classes de l'élève
     const activeSession = await ClassSession.findOne({
-      classId: student.classId,
+      classId: { $in: student.classIds },
       status:  'active',
     }).lean()
 

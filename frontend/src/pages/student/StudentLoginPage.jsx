@@ -112,6 +112,8 @@ const StudentLoginPage = () => {
 
       console.log('ek_user saved =', studentUser)
 
+      window.dispatchEvent(new CustomEvent('studentUpdated'));
+
       setSuccess(true)
 
       setTimeout(() => {
