@@ -20,15 +20,26 @@ async function getMaterials(req, res) {
 // POST /api/materials
 async function addMaterial(req, res) {
   try {
-    const { teacherId, classId, subject, title, fileUrl, sessionId, fileSize, mimeType } = req.body
-    if (!teacherId || !classId || !subject || !title || !fileUrl) {
+    const { teacherId, classId, subject, title, fileUrl, sessionId } = req.body
+    const file = req.file
+
+    const resolvedFileUrl = fileUrl || (file ? `/uploads/materials/${file.filename}` : null)
+    const resolvedFileSize = file ? file.size : req.body.fileSize || null
+    const resolvedMimeType = file ? file.mimetype : req.body.mimeType || null
+
+    if (!teacherId || !classId || !subject || !title || !resolvedFileUrl) {
       return res.status(400).json({ success: false, message: 'teacherId, classId, subject, title et fileUrl sont requis' })
     }
 
     const material = await Material.create({
-      teacherId, classId, subject: subject.toLowerCase(),
-      title: title.trim(), fileUrl: fileUrl.trim(),
-      sessionId: sessionId || null, fileSize: fileSize || null, mimeType: mimeType || null,
+      teacherId,
+      classId,
+      subject: subject.toLowerCase(),
+      title: title.trim(),
+      fileUrl: resolvedFileUrl.trim(),
+      sessionId: sessionId || null,
+      fileSize: resolvedFileSize,
+      mimeType: resolvedMimeType,
     })
 
     res.status(201).json({ success: true, message: 'Fichier ajouté', data: material })
