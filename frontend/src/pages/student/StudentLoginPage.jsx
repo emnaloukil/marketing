@@ -49,8 +49,11 @@ function normalizeStudentPayload(res) {
     studentCode: raw.studentCode || '',
     classId: raw.classId || '',
     supportProfile: raw.supportProfile || 'none',
+    dateOfBirth: raw.dateOfBirth || null,
     avatar: raw.avatar || '🧒',
-    condition: raw.condition || 'normal',
+    condition:
+      raw.condition ||
+      (raw.supportProfile && raw.supportProfile !== 'none' ? raw.supportProfile : 'normal'),
     grade: raw.grade || 'Student',
     xp: raw.xp || 0,
     level: raw.level || 1,

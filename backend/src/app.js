@@ -64,6 +64,8 @@ app.use('/api/students', studentRoutes);
 app.use("/api/sessions", sessionRoutes);
 app.use("/api/events",   eventRoutes);
 app.use('/api/teacher',  teacherRoutes);
+app.use("/api/teacher",  teacherRoutes);
+app.use('/api/quiz', quizRoutes);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get("/api/health", (req, res) => {

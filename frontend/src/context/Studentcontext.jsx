@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getTheme } from "../utils/themes.js";
 import { studentsAPI } from "../api/client";
+import { mapBackendClassroomToCard } from "../utils/studentClassroom.js";
 
 const DEFAULT_THEME = {
   colors: {
@@ -43,7 +44,11 @@ function getStoredStudent() {
         `${parsed?.firstName || ""} ${parsed?.lastName || ""}`.trim() ||
         "Student",
       avatar: parsed?.avatar || "🧒",
-      condition: parsed?.condition || "normal",
+      condition:
+        parsed?.condition ||
+        (parsed?.supportProfile && parsed?.supportProfile !== "none" ? parsed.supportProfile : "normal"),
+      supportProfile: parsed?.supportProfile || parsed?.condition || "none",
+      dateOfBirth: parsed?.dateOfBirth || null,
       grade: parsed?.grade || "Student",
       xp: parsed?.xp || 0,
       level: parsed?.level || 1,
@@ -58,34 +63,15 @@ function getStoredStudent() {
   }
 }
 
-function mapBackendClassroomToCard(classroom) {
-  if (!classroom) return null;
-
-  const materials = classroom.materials || [];
-
-  return {
-    id: String(classroom._id || ""),
-    name: classroom.name || "Classroom",
-    classCode: classroom.classCode || "",
-    teacher: classroom.teacherName || "Teacher",
-    teacherAvatar: "👩‍🏫",
-    color: "#7C3AED",
-    emoji: "🏫",
-    studentsCount: classroom.studentCount || 0,
-    coursesCount: materials.length,
-    lastActivity: materials.length ? "Updated recently" : "Just joined",
-    courses: materials.map((m) => ({
-      id: String(m._id),
-      title: m.title,
-      pages: 0,
-      uploadedAt: m.createdAt ? new Date(m.createdAt).toLocaleDateString() : "",
-      thumbnail: "📚",
-      size: "",
-      completed: false,
-      fileUrl: m.fileUrl,
-      subject: m.subject,
-    })),
-  };
+function markCourseInClassrooms(prevClassrooms, courseId, completed) {
+  return prevClassrooms.map((classroom) => ({
+    ...classroom,
+    courses: (classroom.courses || []).map((course) =>
+      String(course.id) === String(courseId)
+        ? { ...course, completed }
+        : course
+    ),
+  }));
 }
 
 export function StudentProvider({ children }) {
@@ -99,6 +85,8 @@ export function StudentProvider({ children }) {
         name: "Student",
         avatar: "🧒",
         condition: "normal",
+        supportProfile: "none",
+        dateOfBirth: null,
         grade: "Student",
         xp: 0,
         level: 1,
@@ -116,10 +104,9 @@ export function StudentProvider({ children }) {
   const [activeClassroom, setActiveClassroom] = useState(null);
   const [chatbotOpen, setChatbotOpen] = useState(false);
   const [loadingClassrooms, setLoadingClassrooms] = useState(false);
-
   const [classroomsVersion, setClassroomsVersion] = useState(0);
 
-  const reloadClassrooms = () => setClassroomsVersion(prev => prev + 1);
+  const reloadClassrooms = () => setClassroomsVersion((prev) => prev + 1);
 
   const [theme, setTheme] = useState(
     () => getTheme(student?.condition || "normal") ?? DEFAULT_THEME
@@ -132,21 +119,21 @@ export function StudentProvider({ children }) {
     }
 
     const handleStudentUpdate = () => {
-      const stored = getStoredStudent();
-      if (stored) {
-        setStudent(stored);
+      const nextStored = getStoredStudent();
+      if (nextStored) {
+        setStudent(nextStored);
       }
     };
 
-    window.addEventListener('studentUpdated', handleStudentUpdate);
+    window.addEventListener("studentUpdated", handleStudentUpdate);
 
-    return () => window.removeEventListener('studentUpdated', handleStudentUpdate);
+    return () => window.removeEventListener("studentUpdated", handleStudentUpdate);
   }, []);
 
   useEffect(() => {
-    const t = getTheme(student?.condition || "normal") ?? DEFAULT_THEME;
-    setTheme(t);
-    applyThemeToCss(t);
+    const nextTheme = getTheme(student?.condition || "normal") ?? DEFAULT_THEME;
+    setTheme(nextTheme);
+    applyThemeToCss(nextTheme);
   }, [student?.condition]);
 
   useEffect(() => {
@@ -181,35 +168,35 @@ export function StudentProvider({ children }) {
     loadStudentClassroom();
   }, [student, classroomsVersion]);
 
-  const applyThemeToCss = (t) => {
-    if (!t) return;
+  const applyThemeToCss = (nextTheme) => {
+    if (!nextTheme) return;
 
     try {
       const root = document.documentElement;
 
-      if (t.colors) {
-        Object.entries(t.colors).forEach(([key, val]) => {
+      if (nextTheme.colors) {
+        Object.entries(nextTheme.colors).forEach(([key, val]) => {
           root.style.setProperty(`--color-${key}`, val);
         });
 
-        if (t.colors.backgroundGradient) {
-          document.body.style.background = t.colors.backgroundGradient;
+        if (nextTheme.colors.backgroundGradient) {
+          document.body.style.background = nextTheme.colors.backgroundGradient;
         }
       }
 
-      if (t.fonts) {
-        root.style.setProperty("--font-heading", t.fonts.heading ?? "sans-serif");
-        root.style.setProperty("--font-body", t.fonts.body ?? "sans-serif");
-        root.style.setProperty("--font-size-base", t.fonts.size ?? "16px");
-        root.style.setProperty("--line-height", t.fonts.lineHeight ?? "1.6");
-        root.style.setProperty("--letter-spacing", t.fonts.letterSpacing ?? "normal");
+      if (nextTheme.fonts) {
+        root.style.setProperty("--font-heading", nextTheme.fonts.heading ?? "sans-serif");
+        root.style.setProperty("--font-body", nextTheme.fonts.body ?? "sans-serif");
+        root.style.setProperty("--font-size-base", nextTheme.fonts.size ?? "16px");
+        root.style.setProperty("--line-height", nextTheme.fonts.lineHeight ?? "1.6");
+        root.style.setProperty("--letter-spacing", nextTheme.fonts.letterSpacing ?? "normal");
       }
 
-      if (t.borderRadius) {
-        root.style.setProperty("--border-radius", t.borderRadius);
+      if (nextTheme.borderRadius) {
+        root.style.setProperty("--border-radius", nextTheme.borderRadius);
       }
-    } catch (e) {
-      console.warn("applyThemeToCss error:", e);
+    } catch (err) {
+      console.warn("applyThemeToCss error:", err);
     }
   };
 
@@ -227,7 +214,7 @@ export function StudentProvider({ children }) {
   const goBack = () => navigate(-1);
 
   const updateCondition = (condition) => {
-    setStudent((s) => ({ ...s, condition }));
+    setStudent((current) => ({ ...current, condition }));
   };
 
   const refreshStudentClassroom = async () => {
@@ -238,47 +225,77 @@ export function StudentProvider({ children }) {
       const res = await studentsAPI.getClassroom(studentId);
       const data = res?.data;
 
-      if (!data || !data.joined || !data.classInfo) {
+      if (!data || !data.joined || !Array.isArray(data.classrooms)) {
         setClassrooms([]);
         return;
       }
 
-      const classroomCard = mapBackendClassroomToCard(data);
-      setClassrooms(classroomCard ? [classroomCard] : []);
+      const classroomCards = data.classrooms.map(mapBackendClassroomToCard).filter(Boolean);
+      setClassrooms(classroomCards);
     } catch (err) {
       console.warn("refreshStudentClassroom error:", err.message);
     }
   };
 
-  const value = useMemo(
-    () => ({
-      student,
-      setStudent,
-      classrooms,
-      setClassrooms,
-      activeCourse,
-      activeClassroom,
-      chatbotOpen,
-      setChatbotOpen,
-      theme,
-      loadingClassrooms,
-      enterClassroom,
-      openCourse,
-      goBack,
-      updateCondition,
-      refreshStudentClassroom,
-      reloadClassrooms,
-    }),
-    [
-      student,
-      classrooms,
-      activeCourse,
-      activeClassroom,
-      chatbotOpen,
-      theme,
-      loadingClassrooms,
-    ]
-  );
+  const updateCompletionState = (courseId, completed) => {
+    setClassrooms((prev) => markCourseInClassrooms(prev, courseId, completed));
+    setActiveCourse((prev) =>
+      prev && String(prev.id) === String(courseId)
+        ? { ...prev, completed }
+        : prev
+    );
+    setActiveClassroom((prev) =>
+      prev
+        ? {
+            ...prev,
+            courses: (prev.courses || []).map((course) =>
+              String(course.id) === String(courseId)
+                ? { ...course, completed }
+                : course
+            ),
+          }
+        : prev
+    );
+  };
+
+  const markCourseComplete = async (courseId) => {
+    const studentId = student?._id || student?.id;
+    if (!studentId) throw new Error("Student not found");
+
+    const response = await studentsAPI.completeMaterial(studentId, courseId);
+    updateCompletionState(courseId, true);
+    return response;
+  };
+
+  const markCourseIncomplete = async (courseId) => {
+    const studentId = student?._id || student?.id;
+    if (!studentId) throw new Error("Student not found");
+
+    const response = await studentsAPI.uncompleteMaterial(studentId, courseId);
+    updateCompletionState(courseId, false);
+    return response;
+  };
+
+  const value = {
+    student,
+    setStudent,
+    classrooms,
+    setClassrooms,
+    activeCourse,
+    activeClassroom,
+    chatbotOpen,
+    setChatbotOpen,
+    theme,
+    loadingClassrooms,
+    enterClassroom,
+    openCourse,
+    goBack,
+    updateCondition,
+    refreshStudentClassroom,
+    reloadClassrooms,
+    markCourseComplete,
+    markCourseIncomplete,
+  };
 
   return (
     <StudentContext.Provider value={value}>
@@ -291,4 +308,4 @@ export const useStudent = () => {
   const ctx = useContext(StudentContext);
   if (!ctx) throw new Error("useStudent must be used within StudentProvider");
   return ctx;
-}
+};

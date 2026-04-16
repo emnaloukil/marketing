@@ -92,9 +92,9 @@ function TypingDots() {
   )
 }
 
-export default function BuddyPage({ studentName = 'Luna Martinez' }) {
+export default function BuddyPage({}) {
   const [messages, setMessages] = useState([
-    { role:'assistant', content:`Hi ${studentName}! I'm Cloud Bunny 🐰. How was your day today?`, audio:null }
+    { role:'assistant', content:`Hi ! I'm Cloud Bunny 🐰. How was your day today?`, audio:null }
   ])
   const [input, setInput]         = useState('')
   const [language, setLanguage]   = useState('auto')
@@ -212,29 +212,7 @@ export default function BuddyPage({ studentName = 'Luna Martinez' }) {
         .lang-btn:hover { background:rgba(167,139,250,0.12) !important; }
       `}</style>
 
-      {/* Top header bar */}
-      <div style={s.header}>
-        <div style={s.headerInner}>
-          <div style={s.headerLeft}>
-            <div style={s.avatarCircle}><BunnyAvatar size={44}/></div>
-            <div>
-              <div style={s.greetTop}>Hey there! 👋</div>
-              <div style={s.greetName}>{studentName}</div>
-            </div>
-          </div>
-          <div style={s.levelWrap}>
-            <span style={s.levelLabel}>Level 5</span>
-            <div style={s.xpBg}><div style={s.xpFill}/></div>
-          </div>
-          <button style={s.backBtn} onClick={() => navigate(-1)} title="Back to previous page">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-            <span style={s.backLabel}>Back</span>
-          </button>
-        </div>
-        <div style={s.headerWave}/>
-      </div>
+     
 
       {/* Main content — 2 columns on desktop */}
       <div style={s.content}>

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { classesAPI, studentsAPI } from "../../api/client"
 import { useStudent } from "../../context/Studentcontext"
+import { mapBackendClassroomToCard } from "../../utils/studentClassroom"
 import Header from "../../components/student/Header"
 import ChatbotFAB from "../../components/student/Chatbotfab"
 import "./Classrooms.css"
@@ -62,10 +63,8 @@ export default function ClassroomsPage() {
         setLoadingClassroom(true)
 
         const studentId = getFreshStudentId(student)
-        console.log("[ClassroomsPage] loadCurrentClassroom studentId =", studentId)
-
         if (!studentId) {
-          setJoinError("Student ID introuvable. Vérifie le login étudiant.")
+          setJoinError("Student ID introuvable. Verifie le login etudiant.")
           setJoinedClassroom(null)
           return
         }
@@ -88,7 +87,7 @@ export default function ClassroomsPage() {
     }
 
     loadCurrentClassroom()
-  }, [student?._id, student?.id])
+  }, [student])
 
   const handleJoinClassroom = async () => {
     const code = classroomCode.trim().toUpperCase()
@@ -100,13 +99,8 @@ export default function ClassroomsPage() {
 
       const studentId = getFreshStudentId(student)
 
-      console.log("[ClassroomsPage] student context =", student)
-      console.log("[ClassroomsPage] ek_user =", localStorage.getItem("ek_user"))
-      console.log("[ClassroomsPage] studentId sent to join =", studentId)
-      console.log("[ClassroomsPage] classCode sent to join =", code)
-
       if (!studentId) {
-        throw new Error("Student ID introuvable. Reconnecte-toi avec un vrai compte élève.")
+        throw new Error("Student ID introuvable. Reconnecte-toi avec un vrai compte eleve.")
       }
 
       await classesAPI.getByCode(code)
@@ -138,7 +132,6 @@ export default function ClassroomsPage() {
       }
 
       reloadClassrooms()
-
       setClassroomCode("")
       setShowJoinModal(false)
     } catch (err) {
@@ -308,37 +301,6 @@ export default function ClassroomsPage() {
   )
 }
 
-function mapBackendClassroomToCard(data) {
-  const classInfo = data?.classInfo || data
-  const materials = data?.materials || []
-
-  return {
-    id: String(classInfo._id || classInfo.id),
-    name: classInfo.name || "Classroom",
-    classCode: classInfo.classCode || "",
-    teacher: classInfo.teacherName || "Teacher",
-    teacherAvatar: "👩‍🏫",
-    color: "#7C3AED",
-    emoji: "🏫",
-    studentsCount: classInfo.studentCount || 0,
-    coursesCount: materials.length,
-    lastActivity: materials.length ? "Updated recently" : "Just joined",
-    courses: materials.map((m) => ({
-      id: String(m._id),
-      title: m.title,
-      pages: 0,
-      uploadedAt: m.createdAt
-        ? new Date(m.createdAt).toLocaleDateString()
-        : "",
-      thumbnail: "📚",
-      size: "",
-      completed: false,
-      fileUrl: m.fileUrl,
-      subject: m.subject,
-    })),
-  }
-}
-
 function ClassroomCard({ classroom, onEnter, delay }) {
   const courses = classroom.courses || []
   const completedInClass = courses.filter((c) => c.completed).length
@@ -377,32 +339,24 @@ function ClassroomCard({ classroom, onEnter, delay }) {
         </div>
 
         <div className="classroom-info-row">
-          <span className="info-chip">
-            <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-            </svg>
-            {classroom.studentsCount || 0} students
-          </span>
-
-          <span className="info-chip">
+          <div className="classroom-info-pill">
+            👥 {classroom.studentsCount || 0} students
+          </div>
+          <div className="classroom-info-pill">
             📄 {courses.length} lessons
-          </span>
+          </div>
         </div>
 
-        <div className="progress-section">
-          <div className="progress-label">
+        <div className="progress-wrap">
+          <div className="progress-top">
             <span>Progress</span>
             <span>
               {completedInClass}/{courses.length}
             </span>
           </div>
-
-          <div className="progress-bar-bg">
+          <div className="progress-bar">
             <div
-              className="progress-bar-fill"
+              className="progress-fill"
               style={{ width: `${progress}%`, background: classroom.color }}
             />
           </div>
@@ -413,15 +367,8 @@ function ClassroomCard({ classroom, onEnter, delay }) {
           style={{
             background: `linear-gradient(135deg, ${classroom.color}, ${classroom.color}cc)`,
           }}
-          onClick={(e) => {
-            e.stopPropagation()
-            onEnter()
-          }}
         >
           Enter Classroom
-          <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-            <polyline points="9 18 15 12 9 6" />
-          </svg>
         </button>
       </div>
     </div>

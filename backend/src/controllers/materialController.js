@@ -20,12 +20,13 @@ async function getMaterials(req, res) {
 // POST /api/materials
 async function addMaterial(req, res) {
   try {
-    const { teacherId, classId, subject, title, fileUrl, sessionId } = req.body
+    const { teacherId, classId, subject, title, fileUrl, sessionId, pageCount } = req.body
     const file = req.file
 
     const resolvedFileUrl = fileUrl || (file ? `/uploads/materials/${file.filename}` : null)
     const resolvedFileSize = file ? file.size : req.body.fileSize || null
     const resolvedMimeType = file ? file.mimetype : req.body.mimeType || null
+    const resolvedPageCount = Number(pageCount) > 0 ? Number(pageCount) : null
 
     if (!teacherId || !classId || !subject || !title || !resolvedFileUrl) {
       return res.status(400).json({ success: false, message: 'teacherId, classId, subject, title et fileUrl sont requis' })
@@ -40,6 +41,7 @@ async function addMaterial(req, res) {
       sessionId: sessionId || null,
       fileSize: resolvedFileSize,
       mimeType: resolvedMimeType,
+      pageCount: resolvedPageCount,
     })
 
     res.status(201).json({ success: true, message: 'Fichier ajouté', data: material })

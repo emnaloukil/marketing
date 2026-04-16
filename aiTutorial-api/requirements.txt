@@ -1,0 +1,16 @@
+fastapi
+uvicorn[standard]
+pydantic
+python-dotenv
+PyMuPDF
+sentence-transformers
+faiss-cpu
+numpy
+gTTS
+Pillow
+moviepy==1.0.3
+imageio
+imageio-ffmpeg
+python-multipart
+httpx
+requests

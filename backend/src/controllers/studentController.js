@@ -100,6 +100,57 @@ async function getClassroom(req, res) {
   }
 }
 
+async function completeMaterial(req, res) {
+  try {
+    const result = await studentService.markMaterialComplete(
+      req.params.id,
+      req.params.materialId
+    )
+
+    res.json({
+      success: true,
+      message: 'Lecon marquee comme terminee',
+      data: result,
+    })
+  } catch (err) {
+    const status =
+      err.message.includes('introuvable') ? 404 :
+      err.message.includes('requis') ? 400 :
+      err.message.includes('ne fait pas partie') ? 403 :
+      500
+
+    res.status(status).json({
+      success: false,
+      message: err.message,
+    })
+  }
+}
+
+async function uncompleteMaterial(req, res) {
+  try {
+    const result = await studentService.markMaterialIncomplete(
+      req.params.id,
+      req.params.materialId
+    )
+
+    res.json({
+      success: true,
+      message: 'Lecon reouverte',
+      data: result,
+    })
+  } catch (err) {
+    const status =
+      err.message.includes('introuvable') ? 404 :
+      err.message.includes('requis') ? 400 :
+      500
+
+    res.status(status).json({
+      success: false,
+      message: err.message,
+    })
+  }
+}
+
 async function update(req, res) {
   try {
     const student = await studentService.updateStudent(req.params.id, req.body)
@@ -131,6 +182,8 @@ module.exports = {
   getByClass,
   joinClassByCode,
   getClassroom,
+  completeMaterial,
+  uncompleteMaterial,
   update,
   remove,
 }

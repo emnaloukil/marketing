@@ -1,14 +1,17 @@
 export const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
 
 const request = async (method, endpoint, data = null) => {
-  const headers = {
-    'Content-Type': 'application/json',
+  const isFormData = typeof FormData !== 'undefined' && data instanceof FormData
+  const headers = {}
+
+  if (!isFormData) {
+    headers['Content-Type'] = 'application/json'
   }
 
   const config = { method, headers }
 
   if (data && method !== 'GET') {
-    config.body = JSON.stringify(data)
+    config.body = isFormData ? data : JSON.stringify(data)
   }
 
   const response = await fetch(`${BASE_URL}${endpoint}`, config)
@@ -99,10 +102,21 @@ export const studentsAPI = {
   getClassroom: (studentId) => request('GET', `/students/${studentId}/classroom`),
   joinClassroom: (studentId, classCode) =>
     request('POST', `/students/${studentId}/join-class`, { classCode }),
+  completeMaterial: (studentId, materialId) =>
+    request('POST', `/students/${studentId}/materials/${materialId}/complete`),
+  uncompleteMaterial: (studentId, materialId) =>
+    request('DELETE', `/students/${studentId}/materials/${materialId}/complete`),
 }
 
 export const materialsAPI = {
   getByClassroom: (classroomId) => request('GET', `/materials/classroom/${classroomId}`),
+}
+
+export const quizAPI = {
+  create: (data) => request('POST', '/quiz/create', data),
+  submit: (quizId, data) => request('POST', `/quiz/${quizId}/submit`, data),
+  getMine: () => request('GET', '/quiz/my'),
+  getSubmissions: () => request('GET', '/quiz/submissions'),
 }
 
 export default {
@@ -116,4 +130,5 @@ export default {
   student: studentAPI,
   students: studentsAPI,
   materials: materialsAPI,
+  quiz: quizAPI,
 }

@@ -25,6 +25,22 @@ const studentSchema = new mongoose.Schema(
       type:     [String],
       default:  [],
     },
+    completedMaterials: {
+      type: [
+        {
+          materialId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Material',
+            required: true,
+          },
+          completedAt: {
+            type: Date,
+            default: Date.now,
+          },
+        },
+      ],
+      default: [],
+    },
 
     // ── Profil ────────────────────────────────────────────────────────────────
     supportProfile: {
@@ -38,6 +54,31 @@ const studentSchema = new mongoose.Schema(
     dateOfBirth: {
       type:     Date,
       required: [true, 'dateOfBirth est requise'],
+    },
+
+    // ── Gamification ─────────────────────────────────────────────────────────
+    xp: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    totalXp: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    currentStreakDays: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    longestStreak: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    lastActivityDate: {
+      type: Date
     },
 
     // ── Accès enfant ──────────────────────────────────────────────────────────
@@ -65,7 +106,10 @@ const studentSchema = new mongoose.Schema(
 
 // ── Index ─────────────────────────────────────────────────────────────────────
 studentSchema.index({ parent:  1 })
+studentSchema.index({ 'xp': -1 }) // For leaderboard
+studentSchema.index({ 'lastActivityDate': 1 }) // For streak queries
 studentSchema.index({ classIds: 1 })
+studentSchema.index({ 'completedMaterials.materialId': 1 })
 
 // ── Hook pre('save') — hash du PIN ────────────────────────────────────────────
 // Utilise async sans next — Mongoose supporte les promesses nativement

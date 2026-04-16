@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { useStudent } from "../../context/Studentcontext";
 import Header from "../../components/student/Header";
@@ -74,25 +74,50 @@ export default function CoursePage() {
   const { courseId } = useParams();
   const [searchParams] = useSearchParams();
   const classroomId = searchParams.get("classroomId");
-  const id = courseId;
 
-  const { activeCourse, activeClassroom, classrooms, student, theme } = useStudent();
+  const {
+    activeCourse,
+    activeClassroom,
+    classrooms,
+    student,
+    loadingClassrooms,
+    markCourseComplete,
+    markCourseIncomplete,
+  } = useStudent();
+
   const [modalAction, setModalAction] = useState(null);
   const [pdfPage, setPdfPage] = useState(1);
+  const [completeLoading, setCompleteLoading] = useState(false);
+  const [completeError, setCompleteError] = useState("");
 
-  // ── Résolution du cours et de la classroom ──────────────────────
-  // Priorité : état du contexte (navigation normale)
-  // Fallback  : lookup depuis l'URL (accès direct / refresh)
-  const resolvedClassroom =
-    activeClassroom ||
-    classrooms.find((c) => c.id === classroomId) ||
-    classrooms.find((c) => c.courses.some((co) => co.id === id));
+  const resolvedClassroom = useMemo(
+    () =>
+      activeClassroom ||
+      classrooms.find((c) => c.id === classroomId) ||
+      classrooms.find((c) => c.courses.some((course) => course.id === courseId)),
+    [activeClassroom, classroomId, classrooms, courseId]
+  );
 
-  const resolvedCourse =
-    activeCourse ||
-    resolvedClassroom?.courses.find((co) => co.id === id);
+  const resolvedCourse = useMemo(
+    () =>
+      activeCourse?.id === courseId
+        ? activeCourse
+        : resolvedClassroom?.courses.find((course) => course.id === courseId),
+    [activeCourse, resolvedClassroom, courseId]
+  );
 
-  // ── Garde : cours introuvable ───────────────────────────────────
+  useEffect(() => {
+    setPdfPage(1);
+  }, [courseId]);
+
+  if (!resolvedCourse && loadingClassrooms) {
+    return (
+      <div style={{ padding: 40, textAlign: "center", color: "#9E99B8" }}>
+        Loading lesson...
+      </div>
+    );
+  }
+
   if (!resolvedCourse) {
     return (
       <div style={{ padding: 40, textAlign: "center", color: "#9E99B8" }}>
@@ -101,12 +126,33 @@ export default function CoursePage() {
     );
   }
 
+  const pageCount = resolvedCourse.pages || 1;
+  const viewerUrl = resolvedCourse.fileUrl
+    ? `${resolvedCourse.fileUrl}#toolbar=0&navpanes=0&page=${pdfPage}`
+    : "";
+
+  const handleToggleComplete = async () => {
+    setCompleteLoading(true);
+    setCompleteError("");
+
+    try {
+      if (resolvedCourse.completed) {
+        await markCourseIncomplete(resolvedCourse.id);
+      } else {
+        await markCourseComplete(resolvedCourse.id);
+      }
+    } catch (err) {
+      setCompleteError(err.message || "Unable to update lesson status");
+    } finally {
+      setCompleteLoading(false);
+    }
+  };
+
   return (
     <div className="course-page page-enter">
       <Header />
       <div className="container">
         <div className="course-layout">
-          {/* Left: PDF Viewer simulation */}
           <div className="pdf-panel card">
             <div
               className="pdf-panel-header"
@@ -117,7 +163,7 @@ export default function CoursePage() {
                 <div>
                   <h2 className="pdf-title">{resolvedCourse.title}</h2>
                   <p className="pdf-sub">
-                    {resolvedClassroom?.name} · {resolvedCourse.pages} pages
+                    {resolvedClassroom?.name} · {resolvedCourse.pages ? `${resolvedCourse.pages} pages` : "PDF lesson"}
                   </p>
                 </div>
               </div>
@@ -130,42 +176,32 @@ export default function CoursePage() {
               </div>
             </div>
 
-            {/* PDF viewer placeholder */}
             <div className="pdf-viewer">
-              <div className="pdf-page-sim">
+              <div className="pdf-page-shell">
                 <div className="pdf-page-number-badge">
-                  Page {pdfPage} of {resolvedCourse.pages}
+                  Page {Math.min(pdfPage, pageCount)} of {pageCount}
                 </div>
 
-                {/* Simulated PDF content */}
-                <div className="pdf-sim-content">
-                  <div className="pdf-sim-title" />
-                  <div className="pdf-sim-line w-full" />
-                  <div className="pdf-sim-line w-4-5" />
-                  <div className="pdf-sim-line w-full" />
-                  <div className="pdf-sim-line w-3-4" />
-                  <div className="pdf-sim-gap" />
-                  <div className="pdf-sim-subheading" />
-                  <div className="pdf-sim-line w-full" />
-                  <div className="pdf-sim-line w-full" />
-                  <div className="pdf-sim-line w-4-5" />
-                  <div
-                    className="pdf-sim-image"
-                    style={{ background: (resolvedClassroom?.color ?? "#7C3AED") + "22" }}
-                  >
-                    <span className="pdf-sim-image-emoji">{resolvedCourse.thumbnail}</span>
+                {viewerUrl ? (
+                  <iframe
+                    key={viewerUrl}
+                    title={resolvedCourse.title}
+                    src={viewerUrl}
+                    className="pdf-iframe"
+                  />
+                ) : (
+                  <div className="pdf-empty-state">
+                    <div className="pdf-empty-icon">📄</div>
+                    <p>No PDF file is attached to this lesson yet.</p>
                   </div>
-                  <div className="pdf-sim-line w-3-4" />
-                  <div className="pdf-sim-line w-full" />
-                </div>
+                )}
               </div>
 
-              {/* Navigation */}
               <div className="pdf-nav">
                 <button
                   className="pdf-nav-btn"
                   disabled={pdfPage <= 1}
-                  onClick={() => setPdfPage((p) => Math.max(1, p - 1))}
+                  onClick={() => setPdfPage((page) => Math.max(1, page - 1))}
                 >
                   <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                     <polyline points="15 18 9 12 15 6" />
@@ -174,25 +210,25 @@ export default function CoursePage() {
                 </button>
 
                 <div className="pdf-page-dots">
-                  {Array.from({ length: Math.min(resolvedCourse.pages, 8) }, (_, i) => (
+                  {Array.from({ length: Math.min(pageCount, 8) }, (_, index) => (
                     <div
-                      key={i}
-                      className={`pdf-dot ${pdfPage === i + 1 ? "active" : ""}`}
-                      onClick={() => setPdfPage(i + 1)}
+                      key={index}
+                      className={`pdf-dot ${pdfPage === index + 1 ? "active" : ""}`}
+                      onClick={() => setPdfPage(index + 1)}
                       style={
-                        pdfPage === i + 1
+                        pdfPage === index + 1
                           ? { background: resolvedClassroom?.color ?? "#7C3AED" }
                           : {}
                       }
                     />
                   ))}
-                  {resolvedCourse.pages > 8 && <span className="pdf-more">…</span>}
+                  {pageCount > 8 && <span className="pdf-more">…</span>}
                 </div>
 
                 <button
                   className="pdf-nav-btn"
-                  disabled={pdfPage >= resolvedCourse.pages}
-                  onClick={() => setPdfPage((p) => Math.min(resolvedCourse.pages, p + 1))}
+                  disabled={pdfPage >= pageCount}
+                  onClick={() => setPdfPage((page) => Math.min(pageCount, page + 1))}
                 >
                   Next
                   <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -200,10 +236,36 @@ export default function CoursePage() {
                   </svg>
                 </button>
               </div>
+
+              <div className="pdf-footer-actions">
+                <button
+                  className={`lesson-complete-btn ${resolvedCourse.completed ? "completed" : ""}`}
+                  onClick={handleToggleComplete}
+                  disabled={completeLoading}
+                >
+                  {completeLoading
+                    ? "Saving..."
+                    : resolvedCourse.completed
+                      ? "✓ Done"
+                      : "Mark as Done"}
+                </button>
+
+                {resolvedCourse.fileUrl && (
+                  <a
+                    className="pdf-open-link"
+                    href={resolvedCourse.fileUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Open PDF ↗
+                  </a>
+                )}
+              </div>
+
+              {completeError && <p className="course-error-text">{completeError}</p>}
             </div>
           </div>
 
-          {/* Right: AI action panel */}
           <div className="actions-panel">
             <div className="actions-header">
               <h3 className="actions-title">🤖 AI Learning Tools</h3>
@@ -223,7 +285,6 @@ export default function CoursePage() {
               ))}
             </div>
 
-            {/* Quick info card */}
             <div className="lesson-info-card card">
               <div className="lesson-info-row">
                 <span className="info-ico">📄</span>
@@ -244,7 +305,8 @@ export default function CoursePage() {
                 <div>
                   <div className="info-key">Length</div>
                   <div className="info-val">
-                    {resolvedCourse.pages} pages · {resolvedCourse.size}
+                    {resolvedCourse.pages ? `${resolvedCourse.pages} pages` : "PDF lesson"}
+                    {resolvedCourse.size ? ` · ${resolvedCourse.size}` : ""}
                   </div>
                 </div>
               </div>
@@ -255,12 +317,18 @@ export default function CoursePage() {
                   <div className="info-val">{resolvedCourse.uploadedAt}</div>
                 </div>
               </div>
+              <div className="lesson-info-row">
+                <span className="info-ico">✅</span>
+                <div>
+                  <div className="info-key">Status</div>
+                  <div className="info-val">{resolvedCourse.completed ? "Completed" : "In progress"}</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* AI Output Modal */}
       {modalAction && (
         <AIOutputModal
           action={modalAction}

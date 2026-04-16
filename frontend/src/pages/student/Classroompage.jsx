@@ -2,36 +2,10 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useStudent } from "../../context/Studentcontext";
 import { studentsAPI } from "../../api/client";
+import { mapBackendClassroomToCard } from "../../utils/studentClassroom";
 import Header from "../../components/student/Header";
 import ChatbotFAB from "../../components/student/Chatbotfab";
 import "./Classroompage.css";
-
-function mapBackendClassroomToCard(data) {
-  const classInfo = data?.classInfo || data;
-  const materials = data?.materials || [];
-
-  return {
-    id: String(classInfo._id || classInfo.id),
-    name: classInfo.name || "Classroom",
-    classCode: classInfo.classCode || "",
-    teacher: classInfo.teacherName || "Teacher",
-    teacherAvatar: "👩‍🏫",
-    color: "#7C3AED",
-    emoji: "🏫",
-    studentsCount: classInfo.studentCount || 0,
-    courses: materials.map((m) => ({
-      id: String(m._id),
-      title: m.title,
-      pages: 0,
-      uploadedAt: m.createdAt ? new Date(m.createdAt).toLocaleDateString() : "",
-      thumbnail: "📚",
-      size: "",
-      completed: false,
-      fileUrl: m.fileUrl,
-      subject: m.subject,
-    })),
-  };
-}
 
 export default function ClassroomPage() {
   const { classroomId } = useParams();
@@ -55,8 +29,14 @@ export default function ClassroomPage() {
         const res = await studentsAPI.getClassroom(studentId);
         const data = res?.data;
 
-        if (data?.joined && data?.classInfo && String(data.classInfo._id) === String(id)) {
-          setFetchedClassroom(mapBackendClassroomToCard(data));
+        if (data?.joined && Array.isArray(data.classrooms)) {
+          const matchedClassroom = data.classrooms.find(
+            (item) => String(item._id) === String(id)
+          );
+
+          if (matchedClassroom) {
+            setFetchedClassroom(mapBackendClassroomToCard(matchedClassroom));
+          }
         }
       } catch (err) {
         console.warn("ClassroomPage loadClassroom error:", err.message);
@@ -71,7 +51,7 @@ export default function ClassroomPage() {
   if (loadingClassroom) {
     return (
       <div style={{ padding: 40, textAlign: "center", color: "#9E99B8" }}>
-        Chargement de la classe…
+        Chargement de la classe...
       </div>
     );
   }
@@ -79,20 +59,20 @@ export default function ClassroomPage() {
   if (!classroom) {
     return (
       <div style={{ padding: 40, textAlign: "center", color: "#9E99B8" }}>
-        Classroom introuvable. {" "}
+        Classroom introuvable.{" "}
         <button onClick={() => navigate("/student/classrooms")}>← Retour</button>
       </div>
     );
   }
 
+  const totalCourses = classroom.courses.length;
   const completed = classroom.courses.filter((c) => c.completed).length;
-  const progress  = (completed / classroom.courses.length) * 100;
+  const progress = totalCourses ? (completed / totalCourses) * 100 : 0;
 
   return (
     <div className="classroom-page page-enter">
       <Header />
       <div className="container">
-        {/* Classroom hero */}
         <div
           className="classroom-hero"
           style={{
@@ -115,7 +95,7 @@ export default function ClassroomPage() {
           <div className="hero-progress">
             <div className="hero-progress-label">
               <span>📚 Lessons completed</span>
-              <span>{completed} of {classroom.courses.length}</span>
+              <span>{completed} of {totalCourses}</span>
             </div>
             <div className="hero-progress-bar">
               <div
@@ -129,7 +109,6 @@ export default function ClassroomPage() {
           <div className="hero-deco hd2">✨</div>
         </div>
 
-        {/* Lessons section */}
         <div className="section-header" style={{ marginBottom: 24, marginTop: 36 }}>
           <h2 className="section-title">📄 Course Materials</h2>
           <span className="badge">{classroom.courses.length} PDFs</span>
@@ -153,12 +132,14 @@ export default function ClassroomPage() {
 }
 
 function CourseCard({ course, color, onOpen, delay }) {
+  const lengthLabel = course.pages ? `${course.pages} pages` : "PDF lesson";
+  const sizeLabel = course.size || "Open to view";
+
   return (
     <div
       className={`course-card card page-enter ${course.completed ? "course-completed" : ""}`}
       style={{ animationDelay: `${delay}ms` }}
     >
-      {/* PDF thumbnail */}
       <div className="course-thumb" style={{ background: color + "18" }}>
         <div className="course-thumb-emoji">{course.thumbnail}</div>
         <div className="pdf-badge">
@@ -177,8 +158,8 @@ function CourseCard({ course, color, onOpen, delay }) {
         <h3 className="course-title">{course.title}</h3>
 
         <div className="course-meta">
-          <span className="meta-item">📄 {course.pages} pages</span>
-          <span className="meta-item">💾 {course.size}</span>
+          <span className="meta-item">📄 {lengthLabel}</span>
+          <span className="meta-item">💾 {sizeLabel}</span>
         </div>
 
         <div className="course-date">

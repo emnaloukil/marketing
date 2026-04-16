@@ -7,9 +7,26 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target:    'http://localhost:5000',
+        target: 'http://localhost:5000',
         changeOrigin: true,
-      }
+      },
+      '/uploads': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+      },
+      '/ai-api': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/ai-api/, '/api'),
+      },
+      '/health': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+      '/files': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
     }
   }
 })

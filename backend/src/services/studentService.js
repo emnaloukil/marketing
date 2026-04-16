@@ -12,13 +12,13 @@ function validateStudentData({ firstName, lastName, dateOfBirth, classId, suppor
   if (!dateOfBirth) throw new Error('dateOfBirth est requis')
 
   const parsed = new Date(dateOfBirth)
-  if (isNaN(parsed.getTime())) {
+  if (Number.isNaN(parsed.getTime())) {
     throw new Error('dateOfBirth est invalide (format attendu : YYYY-MM-DD)')
   }
 
   if (supportProfile && !VALID_SUPPORT_PROFILES.includes(supportProfile)) {
     throw new Error(
-      `supportProfile invalide : "${supportProfile}". Valeurs acceptées : ${VALID_SUPPORT_PROFILES.join(', ')}`
+      `supportProfile invalide : "${supportProfile}". Valeurs acceptees : ${VALID_SUPPORT_PROFILES.join(', ')}`
     )
   }
 }
@@ -75,7 +75,7 @@ async function getAllStudents(filters = {}) {
 
 async function getStudentById(id) {
   const student = await Student.findById(id).lean()
-  if (!student) throw new Error(`Élève introuvable : ${id}`)
+  if (!student) throw new Error(`Eleve introuvable : ${id}`)
   return student
 }
 
@@ -96,7 +96,7 @@ async function joinClassByCode(studentId, classCode) {
   if (!classCode || !classCode.trim()) throw new Error('classCode est requis')
 
   const student = await Student.findById(studentId)
-  if (!student) throw new Error(`Élève introuvable : ${studentId}`)
+  if (!student) throw new Error(`Eleve introuvable : ${studentId}`)
 
   const cls = await Class.findOne({
     classCode: classCode.trim().toUpperCase(),
@@ -121,7 +121,7 @@ async function getStudentClassroom(studentId) {
   if (!studentId) throw new Error('studentId est requis')
 
   const student = await Student.findById(studentId).lean()
-  if (!student) throw new Error(`Élève introuvable : ${studentId}`)
+  if (!student) throw new Error(`Eleve introuvable : ${studentId}`)
 
   if (!student.classIds || student.classIds.length === 0) {
     return {
@@ -131,6 +131,9 @@ async function getStudentClassroom(studentId) {
   }
 
   const classrooms = []
+  const completedMaterialIds = new Set(
+    (student.completedMaterials || []).map((entry) => String(entry.materialId))
+  )
 
   for (const classId of student.classIds) {
     const cls = await Class.findById(classId).lean()
@@ -153,7 +156,10 @@ async function getStudentClassroom(studentId) {
         ? `${teacher.firstName || ''} ${teacher.lastName || ''}`.trim()
         : '',
       studentCount: cls.studentCount || 0,
-      materials,
+      materials: materials.map((material) => ({
+        ...material,
+        completed: completedMaterialIds.has(String(material._id)),
+      })),
     })
   }
 
@@ -163,16 +169,71 @@ async function getStudentClassroom(studentId) {
   }
 }
 
+async function markMaterialComplete(studentId, materialId) {
+  if (!studentId) throw new Error('studentId est requis')
+  if (!materialId) throw new Error('materialId est requis')
+
+  const [student, material] = await Promise.all([
+    Student.findById(studentId),
+    Material.findById(materialId).lean(),
+  ])
+
+  if (!student) throw new Error(`Eleve introuvable : ${studentId}`)
+  if (!material) throw new Error(`Support introuvable : ${materialId}`)
+
+  const belongsToStudent = (student.classIds || []).includes(String(material.classId))
+  if (!belongsToStudent) {
+    throw new Error("Ce support ne fait pas partie des classes de cet eleve")
+  }
+
+  const alreadyCompleted = (student.completedMaterials || []).some(
+    (entry) => String(entry.materialId) === String(materialId)
+  )
+
+  if (!alreadyCompleted) {
+    student.completedMaterials.push({
+      materialId,
+      completedAt: new Date(),
+    })
+    await student.save()
+  }
+
+  return {
+    studentId: String(student._id),
+    materialId: String(material._id),
+    completed: true,
+  }
+}
+
+async function markMaterialIncomplete(studentId, materialId) {
+  if (!studentId) throw new Error('studentId est requis')
+  if (!materialId) throw new Error('materialId est requis')
+
+  const student = await Student.findById(studentId)
+  if (!student) throw new Error(`Eleve introuvable : ${studentId}`)
+
+  student.completedMaterials = (student.completedMaterials || []).filter(
+    (entry) => String(entry.materialId) !== String(materialId)
+  )
+  await student.save()
+
+  return {
+    studentId: String(student._id),
+    materialId: String(materialId),
+    completed: false,
+  }
+}
+
 async function updateStudent(id, updates) {
   if (updates.supportProfile && !VALID_SUPPORT_PROFILES.includes(updates.supportProfile)) {
     throw new Error(
-      `supportProfile invalide : "${updates.supportProfile}". Valeurs acceptées : ${VALID_SUPPORT_PROFILES.join(', ')}`
+      `supportProfile invalide : "${updates.supportProfile}". Valeurs acceptees : ${VALID_SUPPORT_PROFILES.join(', ')}`
     )
   }
 
   if (updates.dateOfBirth) {
     const parsed = new Date(updates.dateOfBirth)
-    if (isNaN(parsed.getTime())) {
+    if (Number.isNaN(parsed.getTime())) {
       throw new Error('dateOfBirth est invalide (format attendu : YYYY-MM-DD)')
     }
     updates.dateOfBirth = parsed
@@ -192,13 +253,13 @@ async function updateStudent(id, updates) {
     }
   )
 
-  if (!student) throw new Error(`Élève introuvable : ${id}`)
+  if (!student) throw new Error(`Eleve introuvable : ${id}`)
   return student
 }
 
 async function deleteStudent(id) {
   const student = await Student.findById(id)
-  if (!student) throw new Error(`Élève introuvable : ${id}`)
+  if (!student) throw new Error(`Eleve introuvable : ${id}`)
 
   await student.save()
   return student
@@ -211,6 +272,8 @@ module.exports = {
   getStudentsByClass,
   joinClassByCode,
   getStudentClassroom,
+  markMaterialComplete,
+  markMaterialIncomplete,
   updateStudent,
   deleteStudent,
   VALID_SUPPORT_PROFILES,

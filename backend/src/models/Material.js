@@ -43,6 +43,23 @@ const materialSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+
+    fileSize: {
+      type: Number,
+      default: null,
+    },
+
+    mimeType: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+
+    pageCount: {
+      type: Number,
+      default: null,
+      min: 1,
+    },
   },
   {
     timestamps: true,
